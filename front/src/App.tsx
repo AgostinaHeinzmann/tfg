@@ -1,34 +1,42 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
+import { ThemeProvider } from "./components/theme-provider"
+import { Toaster } from "./components/ui/sonner"
+
+// Importar todas las páginas
+import HomePage from "./pages/HomePage"
+import LoginPage from "./pages/LoginPage"
+import RegistroPage from "./pages/RegistroPage"
+import PerfilPage from "./pages/PerfilPage"
+import EventosPage from "./pages/EventosPage"
+import CrearEventoPage from "./pages/CrearEventoPage"
+import EventoDetallePage from "./pages/EventoDetallePage"
+import EventoChatPage from "./pages/EventoChatPage"
+import VerificarIdentidadPage from "./pages/VerificarIdentidadPage"
+import ItinerarioResultadoPage from "./pages/ItinerarioResultadoPage"
+
+import "./App.css"
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <ThemeProvider defaultTheme="light" storageKey="travel-social-theme">
+      <Router>
+        <div className="App">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/registro" element={<RegistroPage />} />
+            <Route path="/perfil" element={<PerfilPage />} />
+            <Route path="/eventos" element={<EventosPage />} />
+            <Route path="/crear-evento" element={<CrearEventoPage />} />
+            <Route path="/eventos/:id" element={<EventoDetallePage />} />
+            <Route path="/eventos/chat/:id" element={<EventoChatPage />} />
+            <Route path="/verificar-identidad" element={<VerificarIdentidadPage />} />
+            <Route path="/itinerario/resultado" element={<ItinerarioResultadoPage />} />
+          </Routes>
+          <Toaster />
+        </div>
+      </Router>
+    </ThemeProvider>
   )
 }
 

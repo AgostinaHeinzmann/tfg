@@ -13,14 +13,17 @@ import EventoDetallePage from "./pages/EventoDetallePage"
 import EventoChatPage from "./pages/EventoChatPage"
 import VerificarIdentidadPage from "./pages/VerificarIdentidadPage"
 import ItinerarioResultadoPage from "./pages/ItinerarioResultadoPage"
-
-import "./App.css"
+import ExperienciasPage from "./pages/ExperienciasPage"
+import BuscarItinerarioPage from "./pages/BuscarItinerarioPage"
+import Navbar from "./components/layout/Navbar"
+import Footer from "./components/layout/Footer"
 
 function App() {
   return (
     <ThemeProvider defaultTheme="light" storageKey="travel-social-theme">
       <Router>
         <div className="App">
+          <Navbar isLoggedIn={false}/> 
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
@@ -32,8 +35,11 @@ function App() {
             <Route path="/eventos/chat/:id" element={<EventoChatPage />} />
             <Route path="/verificar-identidad" element={<VerificarIdentidadPage />} />
             <Route path="/itinerario/resultado" element={<ItinerarioResultadoPage />} />
+            <Route path="/experiencias" element={<ExperienciasPage />} />
+            <Route path="/buscar-itinerario" element={<BuscarItinerarioPage />} />
           </Routes>
           <Toaster />
+          <Footer />
         </div>
       </Router>
     </ThemeProvider>

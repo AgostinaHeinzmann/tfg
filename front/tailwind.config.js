@@ -51,6 +51,16 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        cute: {
+          beige: "#FFF7F1", // Fondo principal
+        },
+        travel: {
+          100: '#424474', // azul superior
+          200: '#483461', // azul violáceo
+          300: '#6A4158', // púrpura medio
+          400: '#A8797B', // coral apagado
+          500: '#8D555C', // rosado terroso
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

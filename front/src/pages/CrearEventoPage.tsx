@@ -30,10 +30,10 @@ const CrearEventoPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white py-12 px-4">
       <div className="container mx-auto max-w-3xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-teal-900 mb-2">Crear un nuevo evento</h1>
+          <h1 className="text-3xl font-bold text-indigo-900 mb-2">Crear un nuevo evento</h1>
           <p className="text-gray-600">Comparte tu experiencia con otros viajeros y crea conexiones inolvidables</p>
         </div>
 
@@ -47,7 +47,7 @@ const CrearEventoPage: React.FC = () => {
         </Alert>
 
         <form onSubmit={handleSubmit}>
-          <Card className="border-teal-100 shadow-md mb-6">
+          <Card className="border-indigo-100 shadow-md mb-6">
             <CardHeader>
               <CardTitle>Información básica</CardTitle>
               <CardDescription>Proporciona los detalles principales de tu evento</CardDescription>
@@ -94,7 +94,7 @@ const CrearEventoPage: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-teal-100 shadow-md mb-6">
+          <Card className="border-indigo-100 shadow-md mb-6">
             <CardHeader>
               <CardTitle>Ubicación y fecha</CardTitle>
               <CardDescription>¿Dónde y cuándo se realizará tu evento?</CardDescription>
@@ -153,7 +153,7 @@ const CrearEventoPage: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-teal-100 shadow-md mb-6">
+          <Card className="border-indigo-100 shadow-md mb-6">
             <CardHeader>
               <CardTitle>Configuración adicional</CardTitle>
               <CardDescription>Personaliza las opciones de tu evento</CardDescription>
@@ -170,7 +170,7 @@ const CrearEventoPage: React.FC = () => {
               </div>
 
               {ageRestriction && (
-                <div className="space-y-2 pl-6 border-l-2 border-teal-100">
+                <div className="space-y-2 pl-6 border-l-2 border-indigo-100">
                   <Label htmlFor="min-age">Edad mínima requerida</Label>
                   <Select value={minAge} onValueChange={setMinAge}>
                     <SelectTrigger id="min-age">
@@ -211,7 +211,7 @@ const CrearEventoPage: React.FC = () => {
             <Button type="button" variant="outline" onClick={() => navigate(-1)}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-teal-600 hover:bg-teal-700">
+            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
               Crear evento
             </Button>
           </div>

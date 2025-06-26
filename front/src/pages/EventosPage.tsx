@@ -24,7 +24,7 @@ const EventosPage: React.FC = () => {
       time: "18:00 - 21:00",
       participants: 12,
       maxParticipants: 15,
-      image: "/placeholder.svg?height=200&width=300",
+      image: "/imagenes/barcelonarestos.jpg?height=200&width=300",
       isOfficial: true,
       category: "Gastronomía",
       ageRestriction: false,
@@ -39,7 +39,7 @@ const EventosPage: React.FC = () => {
       time: "09:00 - 16:00",
       participants: 8,
       maxParticipants: 10,
-      image: "/placeholder.svg?height=200&width=300",
+      image: "/imagenes/senderismo.jpg?height=200&width=300",
       isOfficial: false,
       category: "Aventura",
       ageRestriction: false,
@@ -54,7 +54,7 @@ const EventosPage: React.FC = () => {
       time: "21:00 - 02:00",
       participants: 25,
       maxParticipants: 50,
-      image: "/placeholder.svg?height=200&width=300",
+      image: "/imagenes/fiesta.jpg?height=200&width=300",
       isOfficial: false,
       category: "Fiesta",
       ageRestriction: true,
@@ -70,7 +70,7 @@ const EventosPage: React.FC = () => {
       time: "10:00 - 12:00",
       participants: 15,
       maxParticipants: 20,
-      image: "/placeholder.svg?height=200&width=300",
+      image: "/imagenes/sagradafamilia.jpeg?height=200&width=300",
       isOfficial: true,
       category: "Cultura",
       ageRestriction: false,
@@ -78,15 +78,15 @@ const EventosPage: React.FC = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div>
-              <h1 className="text-4xl font-bold text-teal-900 mb-2">Eventos</h1>
+              <h1 className="text-4xl font-bold text-indigo-900 mb-2">Eventos</h1>
               <p className="text-gray-600">Descubre eventos y actividades para conectar con otros viajeros</p>
             </div>
-            <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => navigate("/crear-evento")}>
+            <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={() => navigate("/crear-evento")}>
               <Plus className="h-4 w-4 mr-2" />
               Crear evento
             </Button>
@@ -95,7 +95,7 @@ const EventosPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* Filters */}
             <div className="lg:col-span-1">
-              <Card className="border-teal-100 sticky top-24">
+              <Card className="border-indigo-100 sticky top-24">
                 <CardHeader>
                   <CardTitle className="text-xl">Filtros</CardTitle>
                 </CardHeader>
@@ -111,7 +111,7 @@ const EventosPage: React.FC = () => {
                   <div className="space-y-2">
                     <div className="font-medium">Categoría</div>
                     <div className="flex flex-wrap gap-2">
-                      <Badge className="cursor-pointer bg-teal-600 hover:bg-teal-700">Todos</Badge>
+                      <Badge className="cursor-pointer bg-indigo-600 hover:bg-indigo-700">Todos</Badge>
                       <Badge className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200">Cultura</Badge>
                       <Badge className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200">Gastronomía</Badge>
                       <Badge className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200">Aventura</Badge>
@@ -122,7 +122,7 @@ const EventosPage: React.FC = () => {
                   <div className="space-y-2">
                     <div className="font-medium">Grupo de edad</div>
                     <div className="flex flex-wrap gap-2">
-                      <Badge className="cursor-pointer bg-teal-600 hover:bg-teal-700">Todos</Badge>
+                      <Badge className="cursor-pointer bg-indigo-600 hover:bg-indigo-700">Todos</Badge>
                       <Badge className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200">18-25</Badge>
                       <Badge className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200">26-35</Badge>
                       <Badge className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200">36-50</Badge>
@@ -133,7 +133,7 @@ const EventosPage: React.FC = () => {
                   <div className="space-y-2">
                     <div className="font-medium">Fecha</div>
                     <div className="flex flex-wrap gap-2">
-                      <Badge className="cursor-pointer bg-teal-600 hover:bg-teal-700">Todos</Badge>
+                      <Badge className="cursor-pointer bg-indigo-600 hover:bg-indigo-700">Todos</Badge>
                       <Badge className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200">Hoy</Badge>
                       <Badge className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200">Esta semana</Badge>
                       <Badge className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200">Este mes</Badge>
@@ -143,7 +143,7 @@ const EventosPage: React.FC = () => {
                   <div className="space-y-2">
                     <div className="font-medium">Tipo</div>
                     <div className="flex flex-wrap gap-2">
-                      <Badge className="cursor-pointer bg-teal-600 hover:bg-teal-700">Todos</Badge>
+                      <Badge className="cursor-pointer bg-indigo-600 hover:bg-indigo-700">Todos</Badge>
                       <Badge className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200">Oficial</Badge>
                       <Badge className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200">Usuario</Badge>
                     </div>
@@ -181,11 +181,11 @@ function EventCard({ event }: { event: any }) {
   const navigate = useNavigate()
 
   return (
-    <Card className="overflow-hidden border-teal-100 hover:shadow-md transition-shadow">
+    <Card className="overflow-hidden border-indigo-100 hover:shadow-md transition-shadow">
       <div className="relative h-48 overflow-hidden">
         <img src={event.image || "/placeholder.svg"} alt={event.title} className="w-full h-full object-cover" />
         <div className="absolute top-3 right-3">
-          <Badge className={`${event.isOfficial ? "bg-teal-600" : "bg-orange-500"}`}>
+          <Badge className={`${event.isOfficial ? "bg-indigo-600" : "bg-orange-500"}`}>
             {event.isOfficial ? (
               <span className="flex items-center gap-1">
                 <CheckCircle className="h-3 w-3" />
@@ -197,7 +197,7 @@ function EventCard({ event }: { event: any }) {
           </Badge>
         </div>
         <div className="absolute top-3 left-3">
-          <Badge className="bg-white/90 text-teal-800">{event.category}</Badge>
+          <Badge className="bg-white/90 text-indigo-800">{event.category}</Badge>
         </div>
         {event.ageRestriction && (
           <div className="absolute bottom-3 left-3">
@@ -206,22 +206,22 @@ function EventCard({ event }: { event: any }) {
         )}
       </div>
       <CardContent className="p-4">
-        <h3 className="font-bold text-lg text-teal-900 mb-2">{event.title}</h3>
+        <h3 className="font-bold text-lg text-indigo-900 mb-2">{event.title}</h3>
         <div className="space-y-2 text-sm text-gray-600 mb-4">
           <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-teal-600" />
+            <MapPin className="h-4 w-4 text-indigo-600" />
             <span>{event.location}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-teal-600" />
+            <Calendar className="h-4 w-4 text-indigo-600" />
             <span>{event.date}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-teal-600" />
+            <Clock className="h-4 w-4 text-indigo-600" />
             <span>{event.time}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-teal-600" />
+            <Users className="h-4 w-4 text-indigo-600" />
             <span>
               {event.participants}/{event.maxParticipants} participantes
             </span>
@@ -231,7 +231,7 @@ function EventCard({ event }: { event: any }) {
         <div className="flex -space-x-2 mb-4">
           {[...Array(4)].map((_, i) => (
             <Avatar key={i} className="border-2 border-white w-8 h-8">
-              <AvatarFallback className="bg-teal-200 text-teal-800 text-xs">
+              <AvatarFallback className="bg-indigo-200 text-indigo-800 text-xs">
                 {String.fromCharCode(65 + i)}
               </AvatarFallback>
             </Avatar>
@@ -245,13 +245,13 @@ function EventCard({ event }: { event: any }) {
 
         <div className="flex gap-2">
           <EventModal event={event}>
-            <Button variant="outline" className="flex-1 border-teal-200 text-teal-700 hover:bg-teal-50">
+            <Button variant="outline" className="flex-1 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
               <Eye className="h-4 w-4 mr-2" />
               Ver evento
             </Button>
           </EventModal>
 
-          <Button className="flex-1 bg-teal-600 hover:bg-teal-700" onClick={() => navigate(`/eventos/${event.id}`)}>
+          <Button className="flex-1 bg-indigo-600 hover:bg-indigo-700" onClick={() => navigate(`/eventos/${event.id}`)}>
             Unirse
           </Button>
         </div>

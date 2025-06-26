@@ -44,7 +44,7 @@ const EventoDetallePage: React.FC = () => {
     time: "18:00 - 21:00",
     participants: 12,
     maxParticipants: 15,
-    image: "/placeholder.svg?height=400&width=800",
+    image: "/imagenes/barcelonarestos.jpg",
     isOfficial: true,
     category: "Gastronomía",
     ageRestriction: true,
@@ -83,20 +83,20 @@ const EventoDetallePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white py-12 px-4">
       <div className="container mx-auto max-w-4xl">
-        <Button variant="ghost" className="mb-6 text-teal-700" onClick={() => navigate(-1)}>
+        <Button variant="ghost" className="mb-6 text-indigo-700" onClick={() => navigate(-1)}>
           <ChevronLeft className="h-4 w-4 mr-1" />
           Volver a eventos
         </Button>
 
         {/* Imagen de portada */}
         <div className="relative rounded-xl overflow-hidden h-[300px] mb-6">
-          <img src={event.image || "/placeholder.svg"} alt={event.title} className="w-full h-full object-cover" />
+          <img src={event.image || "/placeholder.jpg"} alt={event.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
           <div className="absolute bottom-0 left-0 p-6 text-white">
             <div className="flex gap-2 mb-2">
-              <Badge className={`${event.isOfficial ? "bg-teal-600" : "bg-orange-500"}`}>
+              <Badge className={`${event.isOfficial ? "bg-indigo-600" : "bg-orange-500"}`}>
                 {event.isOfficial ? (
                   <span className="flex items-center gap-1">
                     <CheckCircle className="h-3 w-3" />
@@ -106,7 +106,7 @@ const EventoDetallePage: React.FC = () => {
                   "Usuario"
                 )}
               </Badge>
-              <Badge className="bg-white/90 text-teal-800">{event.category}</Badge>
+              <Badge className="bg-white/90 text-indigo-800">{event.category}</Badge>
               {event.ageRestriction && <Badge className="bg-amber-500">+{event.minAge}</Badge>}
             </div>
             <h1 className="text-3xl font-bold mb-2">{event.title}</h1>
@@ -143,7 +143,7 @@ const EventoDetallePage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Detalles del evento */}
           <div className="md:col-span-2">
-            <Card className="border-teal-100 shadow-md mb-6">
+            <Card className="border-indigo-100 shadow-md mb-6">
               <CardHeader>
                 <CardTitle>Detalles del evento</CardTitle>
               </CardHeader>
@@ -152,7 +152,7 @@ const EventoDetallePage: React.FC = () => {
 
                 <div className="space-y-4 pt-4 border-t border-gray-100">
                   <div className="flex items-start gap-3">
-                    <MapPin className="h-5 w-5 text-teal-600 flex-shrink-0 mt-0.5" />
+                    <MapPin className="h-5 w-5 text-indigo-600 flex-shrink-0 mt-0.5" />
                     <div>
                       <h3 className="font-medium text-gray-900">Ubicación</h3>
                       <p className="text-gray-600">{event.location}</p>
@@ -160,7 +160,7 @@ const EventoDetallePage: React.FC = () => {
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <Calendar className="h-5 w-5 text-teal-600 flex-shrink-0 mt-0.5" />
+                    <Calendar className="h-5 w-5 text-indigo-600 flex-shrink-0 mt-0.5" />
                     <div>
                       <h3 className="font-medium text-gray-900">Fecha y hora</h3>
                       <p className="text-gray-600">
@@ -170,7 +170,7 @@ const EventoDetallePage: React.FC = () => {
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <Users className="h-5 w-5 text-teal-600 flex-shrink-0 mt-0.5" />
+                    <Users className="h-5 w-5 text-indigo-600 flex-shrink-0 mt-0.5" />
                     <div>
                       <h3 className="font-medium text-gray-900">Participantes</h3>
                       <p className="text-gray-600">
@@ -193,7 +193,7 @@ const EventoDetallePage: React.FC = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-teal-100 shadow-md">
+            <Card className="border-indigo-100 shadow-md">
               <CardHeader>
                 <CardTitle>Anfitrión</CardTitle>
               </CardHeader>
@@ -201,7 +201,7 @@ const EventoDetallePage: React.FC = () => {
                 <div className="flex items-center gap-4">
                   <Avatar className="h-12 w-12">
                     <AvatarImage src={event.host.avatar || "/placeholder.svg"} alt={event.host.name} />
-                    <AvatarFallback className="bg-teal-200 text-teal-800">
+                    <AvatarFallback className="bg-indigo-200 text-indigo-800">
                       {event.host.name
                         .split(" ")
                         .map((n) => n[0])
@@ -227,7 +227,7 @@ const EventoDetallePage: React.FC = () => {
 
           {/* Sidebar */}
           <div className="md:col-span-1">
-            <Card className="border-teal-100 shadow-md sticky top-24">
+            <Card className="border-indigo-100 shadow-md sticky top-24">
               <CardContent className="pt-6 space-y-6">
                 {isJoined ? (
                   <div className="text-center">
@@ -238,7 +238,7 @@ const EventoDetallePage: React.FC = () => {
                     <p className="text-gray-600 text-sm mb-4">
                       Puedes acceder al chat del evento para coordinar con otros participantes.
                     </p>
-                    <Button className="w-full bg-teal-600 hover:bg-teal-700 mb-3" onClick={handleGoToChat}>
+                    <Button className="w-full bg-indigo-600 hover:bg-indigo-700 mb-3" onClick={handleGoToChat}>
                       <MessageCircle className="h-4 w-4 mr-2" />
                       Ir al chat
                     </Button>
@@ -251,7 +251,7 @@ const EventoDetallePage: React.FC = () => {
                     </Button>
                   </div>
                 ) : (
-                  <Button className="w-full bg-teal-600 hover:bg-teal-700" onClick={handleJoinEvent}>
+                  <Button className="w-full bg-indigo-600 hover:bg-indigo-700" onClick={handleJoinEvent}>
                     Unirse al evento
                   </Button>
                 )}
@@ -262,7 +262,7 @@ const EventoDetallePage: React.FC = () => {
                     {event.attendees.slice(0, 6).map((attendee, index) => (
                       <Avatar key={index} className="h-8 w-8 border-2 border-white">
                         <AvatarImage src={attendee.avatar || "/placeholder.svg"} alt={attendee.name} />
-                        <AvatarFallback className="bg-teal-200 text-teal-800 text-xs">
+                        <AvatarFallback className="bg-indigo-200 text-indigo-800 text-xs">
                           {attendee.name
                             .split(" ")
                             .map((n) => n[0])
@@ -293,7 +293,7 @@ const EventoDetallePage: React.FC = () => {
                           <div key={index} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">
                             <Avatar>
                               <AvatarImage src={attendee.avatar || "/placeholder.svg"} alt={attendee.name} />
-                              <AvatarFallback className="bg-teal-200 text-teal-800">
+                              <AvatarFallback className="bg-indigo-200 text-indigo-800">
                                 {attendee.name
                                   .split(" ")
                                   .map((n) => n[0])

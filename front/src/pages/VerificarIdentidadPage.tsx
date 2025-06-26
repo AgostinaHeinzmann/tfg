@@ -55,24 +55,24 @@ const VerificarIdentidadPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white py-12 px-4">
       <div className="container mx-auto max-w-2xl">
-        <Button variant="ghost" className="mb-6 text-teal-700" onClick={() => navigate(-1)}>
+        <Button variant="ghost" className="mb-6 text-indigo-700" onClick={() => navigate(-1)}>
           <ChevronLeft className="h-4 w-4 mr-1" />
           Volver
         </Button>
 
         <div className="text-center mb-8">
-          <div className="bg-teal-100 p-3 rounded-full w-fit mx-auto mb-4">
-            <Shield className="h-6 w-6 text-teal-600" />
+          <div className="bg-indigo-100 p-3 rounded-full w-fit mx-auto mb-4">
+            <Shield className="h-6 w-6 text-indigo-600" />
           </div>
-          <h1 className="text-3xl font-bold text-teal-900 mb-2">Verificación de identidad</h1>
+          <h1 className="text-3xl font-bold text-indigo-900 mb-2">Verificación de identidad</h1>
           <p className="text-gray-600 max-w-md mx-auto">
             Verifica tu identidad para acceder a eventos con restricción de edad y crear tus propios eventos
           </p>
         </div>
 
-        <Alert className="mb-6 border-teal-200 bg-teal-50 text-teal-800">
+        <Alert className="mb-6 border-indigo-200 bg-indigo-50 text-indigo-800">
           <Info className="h-4 w-4" />
           <AlertTitle>Información importante</AlertTitle>
           <AlertDescription>
@@ -82,33 +82,33 @@ const VerificarIdentidadPage: React.FC = () => {
         </Alert>
 
         {verificationStep === "initial" && (
-          <Card className="border-teal-100 shadow-md">
+          <Card className="border-indigo-100 shadow-md">
             <CardHeader>
               <CardTitle>Elige un método de verificación</CardTitle>
               <CardDescription>Puedes escanear tu DNI con la cámara o subir una imagen del mismo</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div
-                className="border rounded-lg p-6 flex flex-col items-center cursor-pointer hover:bg-teal-50 transition-colors"
+                className="border rounded-lg p-6 flex flex-col items-center cursor-pointer hover:bg-indigo-50 transition-colors"
                 onClick={() => handleStartVerification("scan")}
               >
-                <div className="bg-teal-100 p-3 rounded-full mb-3">
-                  <Camera className="h-6 w-6 text-teal-600" />
+                <div className="bg-indigo-100 p-3 rounded-full mb-3">
+                  <Camera className="h-6 w-6 text-indigo-600" />
                 </div>
-                <h3 className="font-medium text-lg text-teal-900 mb-1">Escanear con cámara</h3>
+                <h3 className="font-medium text-lg text-indigo-900 mb-1">Escanear con cámara</h3>
                 <p className="text-gray-600 text-center">
                   Usa la cámara de tu dispositivo para escanear tu DNI en tiempo real
                 </p>
               </div>
 
               <div
-                className="border rounded-lg p-6 flex flex-col items-center cursor-pointer hover:bg-teal-50 transition-colors"
+                className="border rounded-lg p-6 flex flex-col items-center cursor-pointer hover:bg-indigo-50 transition-colors"
                 onClick={() => handleStartVerification("upload")}
               >
-                <div className="bg-teal-100 p-3 rounded-full mb-3">
-                  <Upload className="h-6 w-6 text-teal-600" />
+                <div className="bg-indigo-100 p-3 rounded-full mb-3">
+                  <Upload className="h-6 w-6 text-indigo-600" />
                 </div>
-                <h3 className="font-medium text-lg text-teal-900 mb-1">Subir imagen</h3>
+                <h3 className="font-medium text-lg text-indigo-900 mb-1">Subir imagen</h3>
                 <p className="text-gray-600 text-center">Sube una foto de tu DNI desde tu dispositivo</p>
               </div>
             </CardContent>
@@ -116,14 +116,14 @@ const VerificarIdentidadPage: React.FC = () => {
         )}
 
         {verificationStep === "scanning" && (
-          <Card className="border-teal-100 shadow-md">
+          <Card className="border-indigo-100 shadow-md">
             <CardHeader>
               <CardTitle>Escanea tu DNI</CardTitle>
               <CardDescription>Coloca tu DNI dentro del marco y asegúrate de que esté bien iluminado</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="aspect-video bg-gray-100 rounded-lg flex flex-col items-center justify-center">
-                <div className="border-2 border-dashed border-teal-300 rounded-lg w-4/5 h-4/5 flex items-center justify-center">
+                <div className="border-2 border-dashed border-indigo-300 rounded-lg w-4/5 h-4/5 flex items-center justify-center">
                   <div className="text-center">
                     <CreditCard className="h-12 w-12 mx-auto mb-3 text-gray-400" />
                     <p className="text-gray-500">Vista previa de la cámara</p>
@@ -136,7 +136,7 @@ const VerificarIdentidadPage: React.FC = () => {
                 <Button variant="outline" onClick={() => setVerificationStep("initial")}>
                   Cancelar
                 </Button>
-                <Button className="bg-teal-600 hover:bg-teal-700" onClick={handleSimulateScan}>
+                <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleSimulateScan}>
                   Capturar
                 </Button>
               </div>
@@ -145,7 +145,7 @@ const VerificarIdentidadPage: React.FC = () => {
         )}
 
         {verificationStep === "uploading" && (
-          <Card className="border-teal-100 shadow-md">
+          <Card className="border-indigo-100 shadow-md">
             <CardHeader>
               <CardTitle>Sube una imagen de tu DNI</CardTitle>
               <CardDescription>Asegúrate de que la imagen sea clara y todos los datos sean legibles</CardDescription>
@@ -155,7 +155,7 @@ const VerificarIdentidadPage: React.FC = () => {
                 <Input id="dni-upload" type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
                 <Label htmlFor="dni-upload" className="cursor-pointer">
                   {uploadedFile ? (
-                    <div className="text-teal-600">
+                    <div className="text-indigo-600">
                       <CheckCircle className="h-12 w-12 mx-auto mb-3" />
                       <p className="font-medium">{uploadedFile.name}</p>
                       <p className="text-sm text-gray-500">Haz clic para cambiar</p>
@@ -174,7 +174,7 @@ const VerificarIdentidadPage: React.FC = () => {
                 <Button variant="outline" onClick={() => setVerificationStep("initial")}>
                   Cancelar
                 </Button>
-                <Button className="bg-teal-600 hover:bg-teal-700" onClick={handleSubmitUpload} disabled={!uploadedFile}>
+                <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleSubmitUpload} disabled={!uploadedFile}>
                   Verificar
                 </Button>
               </div>
@@ -183,20 +183,20 @@ const VerificarIdentidadPage: React.FC = () => {
         )}
 
         {verificationStep === "processing" && (
-          <Card className="border-teal-100 shadow-md">
+          <Card className="border-indigo-100 shadow-md">
             <CardHeader>
               <CardTitle>Procesando tu documento</CardTitle>
               <CardDescription>Estamos verificando tu identidad. Esto puede tomar unos momentos...</CardDescription>
             </CardHeader>
             <CardContent className="py-12 flex flex-col items-center">
-              <div className="w-16 h-16 border-4 border-t-teal-600 border-teal-200 rounded-full animate-spin mb-6"></div>
+              <div className="w-16 h-16 border-4 border-t-indigo-600 border-indigo-200 rounded-full animate-spin mb-6"></div>
               <p className="text-gray-600">Verificando documento...</p>
             </CardContent>
           </Card>
         )}
 
         {verificationStep === "success" && (
-          <Card className="border-teal-100 shadow-md">
+          <Card className="border-indigo-100 shadow-md">
             <CardHeader>
               <CardTitle>¡Verificación exitosa!</CardTitle>
               <CardDescription>Tu identidad ha sido verificada correctamente</CardDescription>
@@ -215,7 +215,7 @@ const VerificarIdentidadPage: React.FC = () => {
               </Badge>
             </CardContent>
             <CardFooter>
-              <Button className="w-full bg-teal-600 hover:bg-teal-700" onClick={handleFinish}>
+              <Button className="w-full bg-indigo-600 hover:bg-indigo-700" onClick={handleFinish}>
                 Continuar
               </Button>
             </CardFooter>

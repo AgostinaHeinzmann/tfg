@@ -53,7 +53,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, children }) => {
           <DialogTitle>{event.title}</DialogTitle>
           <DialogDescription>
             <div className="flex gap-2 mt-2">
-              <Badge className={`${event.isOfficial ? "bg-teal-600" : "bg-orange-500"}`}>
+              <Badge className={`${event.isOfficial ? "bg-indigo-600" : "bg-orange-500"}`}>
                 {event.isOfficial ? (
                   <span className="flex items-center gap-1">
                     <CheckCircle className="h-3 w-3" />
@@ -95,19 +95,19 @@ const EventModal: React.FC<EventModalProps> = ({ event, children }) => {
 
           <div className="space-y-3 text-sm">
             <div className="flex items-center gap-2 text-gray-700">
-              <MapPin className="h-4 w-4 text-teal-600" />
+              <MapPin className="h-4 w-4 text-indigo-600" />
               <span>{event.location}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-700">
-              <Calendar className="h-4 w-4 text-teal-600" />
+              <Calendar className="h-4 w-4 text-indigo-600" />
               <span>{event.date}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-700">
-              <Clock className="h-4 w-4 text-teal-600" />
+              <Clock className="h-4 w-4 text-indigo-600" />
               <span>{event.time}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-700">
-              <Users className="h-4 w-4 text-teal-600" />
+              <Users className="h-4 w-4 text-indigo-600" />
               <span>
                 {event.participants}/{event.maxParticipants} participantes
               </span>
@@ -127,7 +127,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, children }) => {
               <Eye className="h-4 w-4 mr-2" />
               Ver detalles
             </Button>
-            <Button className="flex-1 bg-teal-600 hover:bg-teal-700" onClick={handleJoinEvent}>
+            <Button className="flex-1 bg-indigo-600 hover:bg-indigo-700" onClick={handleJoinEvent}>
               Unirse al evento
             </Button>
           </div>

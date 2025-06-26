@@ -30,14 +30,14 @@ const LoginPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white py-16 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white py-16 px-4">
       <div className="container mx-auto max-w-md">
-        <Card className="border-teal-100 shadow-lg">
+        <Card className="border-indigo-100 shadow-lg">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 bg-teal-100 p-3 rounded-full w-fit">
-              <Globe className="h-6 w-6 text-teal-600" />
+            <div className="mx-auto mb-4 bg-indigo-100 p-3 rounded-full w-fit">
+              <Globe className="h-6 w-6 text-indigo-600" />
             </div>
-            <CardTitle className="text-2xl text-teal-900">Iniciar sesión</CardTitle>
+            <CardTitle className="text-2xl text-indigo-900">Iniciar sesión</CardTitle>
             <CardDescription>Accede a tu cuenta para continuar tu aventura</CardDescription>
           </CardHeader>
           <CardContent>
@@ -66,7 +66,7 @@ const LoginPage: React.FC = () => {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="password">Contraseña</Label>
-                      <Link to="/recuperar-password" className="text-sm text-teal-600 hover:underline">
+                      <Link to="/recuperar-password" className="text-sm text-indigo-600 hover:underline">
                         ¿Olvidaste tu contraseña?
                       </Link>
                     </div>
@@ -83,7 +83,7 @@ const LoginPage: React.FC = () => {
                       />
                     </div>
                   </div>
-                  <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
+                  <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700">
                     Iniciar sesión
                   </Button>
                 </form>
@@ -115,10 +115,10 @@ const LoginPage: React.FC = () => {
               </TabsContent>
             </Tabs>
           </CardContent>
-          <CardFooter className="flex justify-center border-t border-teal-100 pt-4">
+          <CardFooter className="flex justify-center border-t border-indigo-100 pt-4">
             <p className="text-sm text-gray-600">
               ¿No tienes una cuenta?{" "}
-              <Link to="/registro" className="text-teal-600 hover:underline font-medium">
+              <Link to="/registro" className="text-indigo-600 hover:underline font-medium">
                 Regístrate
               </Link>
             </p>

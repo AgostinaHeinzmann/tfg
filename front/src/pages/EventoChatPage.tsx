@@ -49,7 +49,7 @@ const EventoChatPage: React.FC = () => {
     time: "18:00 - 21:00",
     participants: 12,
     maxParticipants: 15,
-    image: "/placeholder.svg?height=200&width=300",
+    image: "/imagenes/barcelonarestos.jpg?height=200&width=300",
     isOfficial: true,
     category: "Gastronomía",
     host: {
@@ -173,24 +173,24 @@ const EventoChatPage: React.FC = () => {
   }, [messages])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-teal-100 sticky top-0 z-10">
+      <header className="bg-white border-b border-indigo-100 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" className="text-teal-700" onClick={() => navigate(-1)}>
+              <Button variant="ghost" size="icon" className="text-indigo-700" onClick={() => navigate(-1)}>
                 <ChevronLeft className="h-5 w-5" />
               </Button>
               <div>
-                <h1 className="font-bold text-lg text-teal-900">{event.title}</h1>
+                <h1 className="font-bold text-lg text-indigo-900">{event.title}</h1>
                 <p className="text-sm text-gray-600">Chat del evento</p>
               </div>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="text-teal-700"
+              className="text-indigo-700"
               onClick={() => navigate(`/eventos/${event.id}`)}
             >
               <Info className="h-4 w-4 mr-1.5" />
@@ -203,7 +203,7 @@ const EventoChatPage: React.FC = () => {
       <div className="flex-1 container mx-auto px-4 py-6 flex flex-col md:flex-row gap-6">
         {/* Chat messages */}
         <div className="flex-1 flex flex-col">
-          <div className="flex-1 bg-white rounded-lg border border-teal-100 shadow-md flex flex-col">
+          <div className="flex-1 bg-white rounded-lg border border-indigo-100 shadow-md flex flex-col">
             {/* Messages container */}
             <div className="flex-1 p-4 overflow-y-auto">
               <div className="space-y-4">
@@ -212,7 +212,7 @@ const EventoChatPage: React.FC = () => {
                     <div className={`flex gap-3 max-w-[80%] ${message.isCurrentUser ? "flex-row-reverse" : ""}`}>
                       <Avatar className="h-8 w-8 flex-shrink-0">
                         <AvatarImage src={message.sender.avatar || "/placeholder.svg"} alt={message.sender.name} />
-                        <AvatarFallback className="bg-teal-200 text-teal-800 text-xs">
+                        <AvatarFallback className="bg-indigo-200 text-indigo-800 text-xs">
                           {message.sender.name
                             .split(" ")
                             .map((n) => n[0])
@@ -225,7 +225,7 @@ const EventoChatPage: React.FC = () => {
                             {message.sender.name}
                           </span>
                           {message.sender.isHost && (
-                            <Badge className="bg-teal-100 text-teal-800 text-xs">
+                            <Badge className="bg-indigo-100 text-indigo-800 text-xs">
                               <CheckCircle className="h-2.5 w-2.5 mr-0.5" />
                               Anfitrión
                             </Badge>
@@ -236,7 +236,7 @@ const EventoChatPage: React.FC = () => {
                         </div>
                         <div
                           className={`rounded-lg p-3 ${
-                            message.isCurrentUser ? "bg-teal-600 text-white" : "bg-gray-100 text-gray-800"
+                            message.isCurrentUser ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-800"
                           }`}
                         >
                           {message.text}
@@ -252,10 +252,10 @@ const EventoChatPage: React.FC = () => {
             {/* Message input */}
             <div className="border-t border-gray-100 p-3">
               <form onSubmit={handleSendMessage} className="flex gap-2">
-                <Button type="button" variant="ghost" size="icon" className="text-gray-500 hover:text-teal-600">
+                <Button type="button" variant="ghost" size="icon" className="text-gray-500 hover:text-indigo-600">
                   <Paperclip className="h-5 w-5" />
                 </Button>
-                <Button type="button" variant="ghost" size="icon" className="text-gray-500 hover:text-teal-600">
+                <Button type="button" variant="ghost" size="icon" className="text-gray-500 hover:text-indigo-600">
                   <ImageIcon className="h-5 w-5" />
                 </Button>
                 <Input
@@ -264,7 +264,7 @@ const EventoChatPage: React.FC = () => {
                   onChange={(e) => setNewMessage(e.target.value)}
                   className="flex-1"
                 />
-                <Button type="submit" className="bg-teal-600 hover:bg-teal-700" disabled={newMessage.trim() === ""}>
+                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700" disabled={newMessage.trim() === ""}>
                   <Send className="h-4 w-4" />
                 </Button>
               </form>
@@ -274,7 +274,7 @@ const EventoChatPage: React.FC = () => {
 
         {/* Event info sidebar - only visible on desktop */}
         <div className="hidden md:block w-80">
-          <Card className="border-teal-100 shadow-md sticky top-24">
+          <Card className="border-indigo-100 shadow-md sticky top-24">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Información del evento</CardTitle>
             </CardHeader>
@@ -283,23 +283,23 @@ const EventoChatPage: React.FC = () => {
                 <img src={event.image || "/placeholder.svg"} alt={event.title} className="w-full h-full object-cover" />
               </div>
 
-              <h3 className="font-medium text-teal-900">{event.title}</h3>
+              <h3 className="font-medium text-indigo-900">{event.title}</h3>
 
               <div className="space-y-3 text-sm">
                 <div className="flex items-center gap-2 text-gray-700">
-                  <MapPin className="h-4 w-4 text-teal-600" />
+                  <MapPin className="h-4 w-4 text-indigo-600" />
                   <span>{event.location}</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-700">
-                  <Calendar className="h-4 w-4 text-teal-600" />
+                  <Calendar className="h-4 w-4 text-indigo-600" />
                   <span>{event.date}</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-700">
-                  <Clock className="h-4 w-4 text-teal-600" />
+                  <Clock className="h-4 w-4 text-indigo-600" />
                   <span>{event.time}</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-700">
-                  <Users className="h-4 w-4 text-teal-600" />
+                  <Users className="h-4 w-4 text-indigo-600" />
                   <span>
                     {event.participants}/{event.maxParticipants} participantes
                   </span>

@@ -1,33 +1,59 @@
-"use client"
 
-import type React from "react"
-import { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
-import { Button } from "../components/ui/button"
-import { Input } from "../components/ui/input"
-import { Label } from "../components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
-import { Globe, Mail, Lock } from "lucide-react"
-import { showToast } from "../lib/toast-utils"
+import type React from "react";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
+import { Globe, Mail, Lock } from "lucide-react";
+import { showToast } from "../lib/toast-utils";
+import { logIn, logInwithGoogle } from "@/services/auth";
 
 const LoginPage: React.FC = () => {
-  const navigate = useNavigate()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Aquí iría la lógica de autenticación
-    showToast.success("Inicio de sesión exitoso", "Bienvenido de vuelta")
-    navigate("/")
-  }
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await logIn({ email, password });
+    if (result?.token) {
+      showToast.success("Inicio de sesión exitoso", "Bienvenido de vuelta");
+      navigate("/");
+    } else {
+      showToast.error(
+        "Error al iniciar sesión",
+        result?.message || "Intenta nuevamente"
+      );
+    }
+  };
 
-  const handleGoogleLogin = () => {
-    // Aquí iría la lógica de autenticación con Google
-    showToast.success("Inicio de sesión con Google exitoso")
-    navigate("/")
-  }
+  const handleGoogleLogin = async () => {
+    const result = await logInwithGoogle();
+    if (result?.token) {
+      showToast.success("Inicio de sesión con Google exitoso");
+      navigate("/");
+    } else {
+      showToast.error(
+        "Error al iniciar sesión con Google",
+        result?.message || "Intenta nuevamente"
+      );
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white py-16 px-4">
@@ -37,8 +63,12 @@ const LoginPage: React.FC = () => {
             <div className="mx-auto mb-4 bg-indigo-100 p-3 rounded-full w-fit">
               <Globe className="h-6 w-6 text-indigo-600" />
             </div>
-            <CardTitle className="text-2xl text-indigo-900">Iniciar sesión</CardTitle>
-            <CardDescription>Accede a tu cuenta para continuar tu aventura</CardDescription>
+            <CardTitle className="text-2xl text-indigo-900">
+              Iniciar sesión
+            </CardTitle>
+            <CardDescription>
+              Accede a tu cuenta para continuar tu aventura
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="email" className="w-full">
@@ -66,7 +96,10 @@ const LoginPage: React.FC = () => {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="password">Contraseña</Label>
-                      <Link to="/recuperar-password" className="text-sm text-indigo-600 hover:underline">
+                      <Link
+                        to="/recuperar-password"
+                        className="text-sm text-indigo-600 hover:underline"
+                      >
                         ¿Olvidaste tu contraseña?
                       </Link>
                     </div>
@@ -83,14 +116,21 @@ const LoginPage: React.FC = () => {
                       />
                     </div>
                   </div>
-                  <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700">
+                  <Button
+                    type="submit"
+                    className="w-full bg-indigo-600 hover:bg-indigo-700"
+                  >
                     Iniciar sesión
                   </Button>
                 </form>
               </TabsContent>
               <TabsContent value="google">
                 <div className="text-center py-6">
-                  <Button variant="outline" className="w-full" onClick={handleGoogleLogin}>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleGoogleLogin}
+                  >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                       <path
                         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -118,7 +158,10 @@ const LoginPage: React.FC = () => {
           <CardFooter className="flex justify-center border-t border-indigo-100 pt-4">
             <p className="text-sm text-gray-600">
               ¿No tienes una cuenta?{" "}
-              <Link to="/registro" className="text-indigo-600 hover:underline font-medium">
+              <Link
+                to="/registro"
+                className="text-indigo-600 hover:underline font-medium"
+              >
                 Regístrate
               </Link>
             </p>
@@ -126,7 +169,7 @@ const LoginPage: React.FC = () => {
         </Card>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default LoginPage
+export default LoginPage;

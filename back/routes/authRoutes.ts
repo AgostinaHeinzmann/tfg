@@ -1,5 +1,4 @@
 import { Router } from "express"
-import { body } from "express-validator"
 import authController from "../controllers/authController"
 import auth from "../middlewares/auth"
 

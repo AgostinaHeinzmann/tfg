@@ -8,17 +8,17 @@ import { Input } from "../components/ui/input"
 import { Label } from "../components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
-import { Globe, Mail, Lock, User, Calendar } from "lucide-react"
+import { Globe, Mail, Lock } from "lucide-react"
 import { Checkbox } from "../components/ui/checkbox"
+import { register as registerUser, logInwithGoogle } from "@/services/auth"
+import { showToast } from "../lib/toast-utils"
 
 const RegistroPage: React.FC = () => {
   const navigate = useNavigate()
   const [formData, setFormData] = useState({
-    name: "",
     email: "",
     password: "",
     confirmPassword: "",
-    birthdate: "",
   })
   const [acceptTerms, setAcceptTerms] = useState(false)
 
@@ -30,15 +30,36 @@ const RegistroPage: React.FC = () => {
     }))
   }
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Aquí iría la lógica de registro
-    navigate("/")
+    if (formData.password !== formData.confirmPassword) {
+      showToast.error("Las contraseñas no coinciden")
+      return
+    }
+    if (!acceptTerms) {
+      showToast.error("Debes aceptar los términos y condiciones")
+      return
+    }
+    const result = await registerUser({
+      email: formData.email,
+      password: formData.password,
+    })
+    if (result?.token) {
+      showToast.success("Registro exitoso", "¡Bienvenido!")
+      navigate("/")
+    } else {
+      showToast.error("Error al registrarse", result?.message || "Intenta nuevamente")
+    }
   }
 
-  const handleGoogleRegister = () => {
-    // Aquí iría la lógica de registro con Google
-    navigate("/")
+  const handleGoogleRegister = async () => {
+    const result = await logInwithGoogle()
+    if (result?.token) {
+      showToast.success("Registro con Google exitoso", "¡Bienvenido!")
+      navigate("/")
+    } else {
+      showToast.error("Error al registrarse con Google", result?.message || "Intenta nuevamente")
+    }
   }
 
   return (
@@ -61,22 +82,6 @@ const RegistroPage: React.FC = () => {
               <TabsContent value="email">
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Nombre completo</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
-                      <Input
-                        id="name"
-                        name="name"
-                        placeholder="Tu nombre"
-                        className="pl-10"
-                        value={formData.name}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
                     <Label htmlFor="email">Correo electrónico</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
@@ -92,23 +97,6 @@ const RegistroPage: React.FC = () => {
                       />
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="birthdate">Fecha de nacimiento</Label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
-                      <Input
-                        id="birthdate"
-                        name="birthdate"
-                        type="date"
-                        className="pl-10"
-                        value={formData.birthdate}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
-                  </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="password">Contraseña</Label>
                     <div className="relative">
@@ -125,7 +113,6 @@ const RegistroPage: React.FC = () => {
                       />
                     </div>
                   </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
                     <div className="relative">
@@ -142,7 +129,6 @@ const RegistroPage: React.FC = () => {
                       />
                     </div>
                   </div>
-
                   <div className="flex items-center space-x-2 mt-4">
                     <Checkbox
                       id="terms"
@@ -160,7 +146,6 @@ const RegistroPage: React.FC = () => {
                       </Link>
                     </label>
                   </div>
-
                   <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700" disabled={!acceptTerms}>
                     Crear cuenta
                   </Button>

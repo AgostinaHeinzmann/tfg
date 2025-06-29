@@ -1,4 +1,4 @@
-import { User } from "models"
+//import { User } from "models"
 import {
   Table,
   Column,
@@ -21,12 +21,12 @@ export class Event extends Model<Event> {
   @Column(DataType.INTEGER)
   evento_id!: number
 
-  @ForeignKey(() => Object) // Reemplaza Object por el modelo Direccion si lo tienes
+  //@ForeignKey(() => Object) // Reemplaza Object por el modelo Direccion si lo tienes
   @AllowNull(true)
   @Column(DataType.INTEGER)
   direccion_id?: number | null
 
-  @ForeignKey(() => User) // Reemplaza Object por el modelo User si lo tienes
+  //@ForeignKey(() => User) // Reemplaza Object por el modelo User si lo tienes
   @AllowNull(true)
   @Column(DataType.INTEGER)
   usuario_id?: number | null

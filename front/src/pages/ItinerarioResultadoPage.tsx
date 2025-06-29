@@ -1,4 +1,3 @@
-
 import type React from "react"
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
@@ -22,6 +21,7 @@ import {
   Train,
 } from "lucide-react"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../components/ui/accordion"
+import Map from "../components/map"
 
 // Tipos para las actividades
 type Activity = {
@@ -30,10 +30,10 @@ type Activity = {
   description: string
   location: string
   address: string
+  coordinates: [number, number]
   time: string
   duration: string
   price: number | null
-  priceRange: "€" | "€€" | "€€€" | "€€€€" | "Gratis"
   ticketUrl?: string
   imageUrl: string
   rating: number
@@ -54,9 +54,8 @@ const ItinerarioResultadoPage: React.FC = () => {
     destination: "París, Francia",
     duration: 5,
     interests: ["Museos", "Arte", "Historia"],
-    totalCost: 450,
-    currency: "EUR",
     coverImage: "/imagenes/paris.avif?height=400&width=800",
+    coordinates: [48.8566, 2.3522] as [number, number], // París
     days: [
       {
         day: 1,
@@ -68,10 +67,10 @@ const ItinerarioResultadoPage: React.FC = () => {
               "El museo de arte más grande del mundo y un monumento histórico en París. Hogar de miles de obras de arte, incluyendo la Mona Lisa y la Venus de Milo.",
             location: "Palais Royal, Musée du Louvre",
             address: "Rue de Rivoli, 75001 París, Francia",
+            coordinates: [48.8606, 2.3376] as [number, number],
             time: "09:00 - 12:30",
             duration: "3.5 horas",
             price: 17,
-            priceRange: "€€" as const,
             ticketUrl: "https://www.louvre.fr/en/visit",
             imageUrl: "/imagenes/louvre.jpg?height=200&width=300",
             rating: 4.8,
@@ -84,6 +83,7 @@ const ItinerarioResultadoPage: React.FC = () => {
               "Albergado en la antigua estación de Orsay, este museo contiene principalmente arte francés de 1848 a 1914, incluyendo obras maestras impresionistas y postimpresionistas.",
             location: "Musée d'Orsay",
             address: "1 Rue de la Légion d'Honneur, 75007 París, Francia",
+            coordinates: [48.8599, 2.3266] as [number, number],
             time: "15:00 - 18:00",
             duration: "3 horas",
             price: 16,
@@ -103,7 +103,7 @@ const ItinerarioResultadoPage: React.FC = () => {
   const getActivityIcon = (type: Activity["type"]) => {
     switch (type) {
       case "museo":
-        return <Info className="h-4 w-4" />
+        return <Utensils className="h-4 w-4" />
       case "atracción":
         return <Star className="h-4 w-4" />
       case "transporte":
@@ -115,38 +115,14 @@ const ItinerarioResultadoPage: React.FC = () => {
     }
   }
 
-  // Función para renderizar el rango de precios
-  const renderPriceRange = (priceRange: Activity["priceRange"]) => {
-    if (priceRange === "Gratis") {
-      return <span className="text-green-600 font-medium">Gratis</span>
-    }
-
-    const euros = priceRange.length
-    const filledEuros = Array(euros).fill("€").join("")
-    return <span className="text-gray-700">{filledEuros}</span>
-  }
-
-  // Calcular el costo total del itinerario
-  const calculateTotalCost = () => {
-    let total = 0
-    itineraryData.days.forEach((day) => {
-      day.activities.forEach((activity) => {
-        if (activity.price) {
-          total += activity.price
-        }
-      })
-    })
-    return total
-  }
-
   const handleSaveItinerary = () => {
     setIsSaved(!isSaved)
     // Aquí iría la lógica para guardar el itinerario
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white py-12 px-4">
-      <div className="container mx-auto max-w-5xl">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
+      <div className="container mx-auto max-w-5xl py-12 px-4">
         <Button variant="ghost" className="mb-6 text-indigo-700" onClick={() => navigate(-1)}>
           <ChevronLeft className="h-4 w-4 mr-1" />
           Volver a búsqueda
@@ -168,7 +144,6 @@ const ItinerarioResultadoPage: React.FC = () => {
                 </Badge>
               ))}
               <Badge className="bg-white/90 text-indigo-800">{itineraryData.duration} días</Badge>
-              {/* <Badge className="bg-amber-500">{itineraryData.budget}</Badge> */}
             </div>
             <h1 className="text-3xl font-bold mb-2">Itinerario para {itineraryData.destination}</h1>
             <div className="flex items-center gap-4 text-white/90">
@@ -178,9 +153,6 @@ const ItinerarioResultadoPage: React.FC = () => {
               </div>
               <div className="flex items-center gap-1.5">
                 <Euro className="h-4 w-4" />
-                <span>
-                  ~{calculateTotalCost()} {itineraryData.currency}
-                </span>
               </div>
             </div>
           </div>
@@ -214,7 +186,7 @@ const ItinerarioResultadoPage: React.FC = () => {
           <CardContent className="space-y-4">
             <p className="text-gray-700">
               Este itinerario de {itineraryData.duration} días en {itineraryData.destination} está enfocado en{" "}
-              <strong>{itineraryData.interests.join(", ")}</strong>. Incluye visitas a los principales museos de la
+              <strong>{itineraryData.interests.join(", ")}</strong> con un presupuesto{" "}
               ciudad, con tiempo para disfrutar de la gastronomía local.
             </p>
 
@@ -225,16 +197,6 @@ const ItinerarioResultadoPage: React.FC = () => {
                   Duración
                 </h3>
                 <p className="text-gray-700">{itineraryData.duration} días completos</p>
-              </div>
-
-              <div className="bg-indigo-50 rounded-lg p-4">
-                <h3 className="font-medium text-indigo-900 mb-2 flex items-center">
-                  <Euro className="h-5 w-5 mr-2 text-indigo-600" />
-                  Presupuesto estimado
-                </h3>
-                <p className="text-gray-700">
-                  {calculateTotalCost()} {itineraryData.currency} (solo entradas y comidas)
-                </p>
               </div>
 
               <div className="bg-indigo-50 rounded-lg p-4">
@@ -310,7 +272,6 @@ const ItinerarioResultadoPage: React.FC = () => {
                                 <span className="text-sm text-gray-500">•</span>
                                 <span className="text-sm text-gray-500">{activity.duration}</span>
                                 <span className="text-sm text-gray-500">•</span>
-                                <span className="text-sm text-gray-500">{renderPriceRange(activity.priceRange)}</span>
                               </div>
                               <p className="text-gray-700 text-sm mb-3">{activity.description}</p>
                               <div className="space-y-2">
@@ -321,27 +282,27 @@ const ItinerarioResultadoPage: React.FC = () => {
                                     <p className="text-xs text-gray-500">{activity.address}</p>
                                   </div>
                                 </div>
-                                {activity.price !== null && (
-                                  <div className="flex items-center gap-2">
-                                    <Euro className="h-4 w-4 text-indigo-600" />
-                                    <p className="text-sm">
-                                      {activity.price === 0
-                                        ? "Entrada gratuita"
-                                        : `${activity.price} ${itineraryData.currency}`}
-                                    </p>
+                                {activity.ticketUrl && (
+                                  <div className="mt-3">
+                                    <Button variant="outline" size="sm" className="text-indigo-700 bg-transparent" asChild>
+                                      <Link to={activity.ticketUrl} target="_blank" rel="noopener noreferrer">
+                                        <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                                        Comprar entradas
+                                      </Link>
+                                    </Button>
                                   </div>
                                 )}
-                              </div>
-                              {activity.ticketUrl && (
                                 <div className="mt-3">
-                                  <Button variant="outline" size="sm" className="text-indigo-700" asChild>
-                                    <Link to={activity.ticketUrl} target="_blank" rel="noopener noreferrer">
-                                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                                      Comprar entradas
-                                    </Link>
-                                  </Button>
+                                  <Map
+                                    center={activity.coordinates}
+                                    zoom={16}
+                                    height="150px"
+                                    address={activity.address}
+                                    title={activity.title}
+                                    showGoogleMapsButton={false}
+                                  />
                                 </div>
-                              )}
+                              </div>
                             </div>
                           </div>
                         </CardContent>
@@ -360,13 +321,14 @@ const ItinerarioResultadoPage: React.FC = () => {
             <CardTitle>Mapa del itinerario</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[400px] bg-gray-100 rounded-md flex items-center justify-center text-gray-500">
-              <div className="text-center">
-                <MapPin className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p className="text-lg font-medium">Mapa interactivo</p>
-                <p className="text-sm">(Integración con Google Maps)</p>
-              </div>
-            </div>
+            <Map
+              center={itineraryData.coordinates}
+              zoom={13}
+              height="400px"
+              address={itineraryData.destination}
+              title={`Itinerario de ${itineraryData.destination}`}
+              showGoogleMapsButton={true}
+            />
           </CardContent>
         </Card>
 
@@ -383,7 +345,7 @@ const ItinerarioResultadoPage: React.FC = () => {
                 permitirá usar el metro, autobuses y RER. Costo aproximado: 38.35€ para 5 días (zonas 1-3).
               </p>
               <div className="flex gap-2 mt-2">
-                <Button variant="outline" size="sm" className="text-indigo-700" asChild>
+                <Button variant="outline" size="sm" className="text-indigo-700 bg-transparent" asChild>
                   <Link to="https://www.ratp.fr/en/titres-et-tarifs/paris-visite-travel-pass" target="_blank">
                     <Train className="h-3.5 w-3.5 mr-1.5" />
                     Comprar Paris Visite
@@ -399,7 +361,7 @@ const ItinerarioResultadoPage: React.FC = () => {
                 muchos de los que visitarás en este itinerario. Costo: 85€ para 6 días.
               </p>
               <div className="flex gap-2 mt-2">
-                <Button variant="outline" size="sm" className="text-indigo-700" asChild>
+                <Button variant="outline" size="sm" className="text-indigo-700 bg-transparent" asChild>
                   <Link to="https://www.parismuseumpass.fr/en" target="_blank">
                     <Info className="h-3.5 w-3.5 mr-1.5" />
                     Paris Museum Pass

@@ -37,7 +37,7 @@ const BuscarItinerarioPage: React.FC = () => {
       destination: "Barcelona, España",
       duration: 5,
       image: "/imagenes/barcelona.webp?height=200&width=300",
-      tags: ["Cultura", "Gastronomía"],
+      tags: ["Cultura", "Gastronomía", "Playa"],
     },
     {
       id: "2",

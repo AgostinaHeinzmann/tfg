@@ -25,6 +25,7 @@ import {
   ChevronLeft,
 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert"
+import { Map } from "../components/map"
 
 const EventoDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -40,11 +41,12 @@ const EventoDetallePage: React.FC = () => {
     description:
       "Descubre los sabores auténticos de Barcelona en este recorrido por los mejores bares de tapas y restaurantes locales. Probaremos una variedad de platos tradicionales catalanes mientras aprendemos sobre la historia culinaria de la región. El tour incluye 5 paradas con degustaciones en cada una. ¡Ven con hambre y sed de conocimiento!",
     location: "Plaza Catalunya, Barcelona, España",
+    coordinates: [41.3851, 2.1734] as [number, number],
     date: "15 de mayo, 2023",
     time: "18:00 - 21:00",
     participants: 12,
     maxParticipants: 15,
-    image: "/imagenes/barcelonarestos.jpg",
+    image: "/imagenes/barcelonarestos.jpg?height=400&width=800",
     isOfficial: true,
     category: "Gastronomía",
     ageRestriction: true,
@@ -83,8 +85,8 @@ const EventoDetallePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white py-12 px-4">
-      <div className="container mx-auto max-w-4xl">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
+      <div className="container mx-auto max-w-4xl py-12 px-4">
         <Button variant="ghost" className="mb-6 text-indigo-700" onClick={() => navigate(-1)}>
           <ChevronLeft className="h-4 w-4 mr-1" />
           Volver a eventos
@@ -92,7 +94,7 @@ const EventoDetallePage: React.FC = () => {
 
         {/* Imagen de portada */}
         <div className="relative rounded-xl overflow-hidden h-[300px] mb-6">
-          <img src={event.image || "/placeholder.jpg"} alt={event.title} className="w-full h-full object-cover" />
+          <img src={event.image || "/imagenes/barcelonarestos.jpg"} alt={event.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
           <div className="absolute bottom-0 left-0 p-6 text-white">
             <div className="flex gap-2 mb-2">
@@ -131,7 +133,7 @@ const EventoDetallePage: React.FC = () => {
               Este evento tiene restricción de edad (+{event.minAge}). Debes verificar tu identidad para poder unirte.
               <Button
                 variant="outline"
-                className="mt-2 border-amber-300 text-amber-800 hover:bg-amber-100"
+                className="mt-2 border-amber-300 text-amber-800 hover:bg-amber-100 bg-transparent"
                 onClick={handleVerifyIdentity}
               >
                 Verificar ahora
@@ -182,12 +184,15 @@ const EventoDetallePage: React.FC = () => {
 
                 <div className="pt-4 border-t border-gray-100">
                   <h3 className="font-medium text-gray-900 mb-3">Mapa</h3>
-                  <div className="h-[200px] bg-gray-100 rounded-md flex items-center justify-center text-gray-500">
-                    <div className="text-center">
-                      <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>Mapa interactivo</p>
-                      <p className="text-sm">(Integración con Google Maps)</p>
-                    </div>
+                  <div className="w-full">
+                    <Map
+                      center={event.coordinates}
+                      zoom={16}
+                      height="250px"
+                      address={event.location}
+                      title={event.title}
+                      showGoogleMapsButton={true}
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -244,7 +249,7 @@ const EventoDetallePage: React.FC = () => {
                     </Button>
                     <Button
                       variant="outline"
-                      className="w-full border-red-200 text-red-700 hover:bg-red-50"
+                      className="w-full border-red-200 text-red-700 hover:bg-red-50 bg-transparent"
                       onClick={() => setIsJoined(false)}
                     >
                       Cancelar participación
@@ -279,7 +284,7 @@ const EventoDetallePage: React.FC = () => {
 
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full text-sm">
+                      <Button variant="outline" className="w-full text-sm bg-transparent">
                         Ver todos los participantes
                       </Button>
                     </DialogTrigger>
@@ -312,7 +317,7 @@ const EventoDetallePage: React.FC = () => {
                 </div>
 
                 <div className="border-t border-gray-100 pt-4">
-                  <Button variant="outline" className="w-full">
+                  <Button variant="outline" className="w-full bg-transparent">
                     <Share2 className="h-4 w-4 mr-2" />
                     Compartir evento
                   </Button>

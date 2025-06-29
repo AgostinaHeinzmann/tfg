@@ -28,11 +28,11 @@ const PerfilPage: React.FC = () => {
 
   // Datos de ejemplo
   const userData = {
-    name: "María García",
-    email: "maria@example.com",
-    location: "Barcelona, España",
-    joinDate: "Mayo 2023",
-    avatar: "/placeholder.svg?height=100&width=100",
+    name: "Agostina Heinzmann",
+    email: "agos.heinzmann@gmail.com",
+    location: "Córdoba, Argentina",
+    joinDate: "Junio 2025",
+    avatar: "/imagenes/image.png?height=100&width=100",
   }
 
   const itineraries = [

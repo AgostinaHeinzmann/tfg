@@ -17,6 +17,7 @@ import ExperienciasPage from "./pages/ExperienciasPage"
 import BuscarItinerarioPage from "./pages/BuscarItinerarioPage"
 import Navbar from "./components/layout/Navbar"
 import Footer from "./components/layout/Footer"
+import ChatGeneralEventoPage from "./pages/ChatGeneralEventoPage"
 
 function App() {
   return (
@@ -37,6 +38,8 @@ function App() {
             <Route path="/itinerario/resultado" element={<ItinerarioResultadoPage />} />
             <Route path="/experiencias" element={<ExperienciasPage />} />
             <Route path="/buscar-itinerario" element={<BuscarItinerarioPage />} />
+            <Route path="/chat" element={<ChatGeneralEventoPage />} />
+
           </Routes>
           <Toaster />
           <Footer />

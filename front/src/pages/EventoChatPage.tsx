@@ -34,8 +34,11 @@ type Message = {
   isCurrentUser: boolean
 }
 
-const EventoChatPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>()
+type EventoChatPageProps = { id?: string }
+
+const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
+  const params = useParams<{ id: string }>()
+  const id = props.id || params.id
   const navigate = useNavigate()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [newMessage, setNewMessage] = useState("")

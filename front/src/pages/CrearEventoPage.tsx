@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
@@ -14,14 +12,17 @@ import { Calendar } from "../components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { CalendarIcon, MapPin, Clock, ImageIcon, AlertCircle } from "lucide-react"
+import { CalendarIcon, Clock, ImageIcon, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert"
+import { Map } from "../components/map"
 
 const CrearEventoPage: React.FC = () => {
   const navigate = useNavigate()
   const [date, setDate] = useState<Date>()
   const [ageRestriction, setAgeRestriction] = useState(false)
   const [minAge, setMinAge] = useState("18")
+  const [eventLocation, setEventLocation] = useState("")
+  const [eventCoordinates, setEventCoordinates] = useState<[number, number]>([41.3851, 2.1734]) // Barcelona por defecto
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,9 +30,15 @@ const CrearEventoPage: React.FC = () => {
     navigate("/eventos")
   }
 
+  const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEventLocation(e.target.value)
+    // Aquí podrías agregar lógica para geocodificar la dirección
+    // Por ahora mantenemos las coordenadas de Barcelona
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white py-12 px-4">
-      <div className="container mx-auto max-w-3xl">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
+      <div className="container mx-auto max-w-3xl py-12 px-4">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-indigo-900 mb-2">Crear un nuevo evento</h1>
           <p className="text-gray-600">Comparte tu experiencia con otros viajeros y crea conexiones inolvidables</p>
@@ -102,16 +109,22 @@ const CrearEventoPage: React.FC = () => {
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="location">Ubicación *</Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
-                  <Input id="location" placeholder="Dirección completa del evento" className="pl-10" required />
-                </div>
-                <div className="h-[200px] mt-3 bg-gray-100 rounded-md flex items-center justify-center text-gray-500">
-                  <div className="text-center">
-                    <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>Mapa interactivo</p>
-                    <p className="text-sm">(Integración con Google Maps)</p>
-                  </div>
+                <Input
+                  id="location"
+                  placeholder="Dirección completa del evento"
+                  value={eventLocation}
+                  onChange={handleLocationChange}
+                  required
+                />
+                <div className="mt-3">
+                  <Map
+                    center={eventCoordinates}
+                    zoom={16}
+                    height="200px"
+                    address={eventLocation}
+                    title="Ubicación del evento"
+                    showGoogleMapsButton={true}
+                  />
                 </div>
               </div>
 
@@ -120,7 +133,7 @@ const CrearEventoPage: React.FC = () => {
                   <Label>Fecha *</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <Button variant="outline" className="w-full justify-start text-left font-normal bg-transparent">
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {date ? format(date, "PPP", { locale: es }) : "Selecciona una fecha"}
                       </Button>

@@ -1,4 +1,3 @@
-
 import type React from "react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -33,7 +32,7 @@ const LoginPage: React.FC = () => {
     const result = await logIn({ email, password });
     if (result?.token) {
       showToast.success("Inicio de sesión exitoso", "Bienvenido de vuelta");
-      navigate("/");
+      navigate("/experiencias"); 
     } else {
       showToast.error(
         "Error al iniciar sesión",
@@ -46,7 +45,7 @@ const LoginPage: React.FC = () => {
     const result = await logInwithGoogle();
     if (result?.token) {
       showToast.success("Inicio de sesión con Google exitoso");
-      navigate("/");
+      navigate("/experiencias");
     } else {
       showToast.error(
         "Error al iniciar sesión con Google",

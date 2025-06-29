@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
@@ -8,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "./ui/badge"
 import { MapPin, Calendar, Clock, Users, CheckCircle, AlertCircle, Eye } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert"
-
+import { Map } from "./map" 
 type EventModalProps = {
   event: {
     id: string
@@ -33,6 +31,9 @@ const EventModal: React.FC<EventModalProps> = ({ event, children }) => {
   const [isVerified, setIsVerified] = useState(false)
   const [showVerificationAlert, setShowVerificationAlert] = useState(false)
 
+  // Coordenadas de ejemplo para Barcelona
+  const eventCoordinates: [number, number] = [41.3851, 2.1734]
+
   const handleJoinEvent = () => {
     if (event.ageRestriction && !isVerified) {
       setShowVerificationAlert(true)
@@ -48,7 +49,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, children }) => {
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{event.title}</DialogTitle>
           <DialogDescription>
@@ -82,7 +83,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, children }) => {
                 Este evento tiene restricción de edad (+{event.minAge}). Debes verificar tu identidad para poder unirte.
                 <Button
                   variant="outline"
-                  className="mt-2 border-amber-300 text-amber-800 hover:bg-amber-100"
+                  className="mt-2 border-amber-300 text-amber-800 hover:bg-amber-100 bg-transparent"
                   onClick={handleVerifyIdentity}
                 >
                   Verificar ahora
@@ -114,16 +115,23 @@ const EventModal: React.FC<EventModalProps> = ({ event, children }) => {
             </div>
           </div>
 
-          <div className="h-[150px] bg-gray-100 rounded-md flex items-center justify-center text-gray-500">
-            <div className="text-center">
-              <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>Mapa interactivo</p>
-              <p className="text-sm">(Integración con Google Maps)</p>
-            </div>
+          <div className="pt-2">
+            <Map
+              center={eventCoordinates}
+              zoom={16}
+              height="200px"
+              address={event.location}
+              title={event.title}
+              showGoogleMapsButton={true}
+            />
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button variant="outline" className="flex-1" onClick={() => navigate(`/eventos/${event.id}`)}>
+            <Button
+              variant="outline"
+              className="flex-1 bg-transparent"
+              onClick={() => navigate(`/eventos/${event.id}`)}
+            >
               <Eye className="h-4 w-4 mr-2" />
               Ver detalles
             </Button>

@@ -2,7 +2,7 @@ import type React from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Button } from "../components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card"
-import { Globe, Calendar, MessageCircle, Shield, LogIn, UserPlus, MapPin, Users, Router, Camera } from "lucide-react"
+import { Globe, Calendar, MessageCircle, Shield, LogIn, UserPlus, MapPin, Users, Router, Camera, Trees } from "lucide-react"
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate()
@@ -15,7 +15,7 @@ const HomePage: React.FC = () => {
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">Explora, Conecta, Viaja</h1>
             <p className="text-xl md:text-2xl mb-8 text-indigo-100">
-              Descubre destinos increíbles, crea itinerarios personalizados y conecta con otros viajeros
+              Descubre destinos increíbles, busca itinerarios personalizados y conecta con otros viajeros
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="bg-indigo-500 text-indigo-indigo hover:bg-indigo-indigoHover" onClick={() => navigate("/login")}>
@@ -50,14 +50,14 @@ const HomePage: React.FC = () => {
             <Card className="border-indigo-100 hover:shadow-md transition-shadow">
               <CardHeader>
                 <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center mb-2">
-                  <Router className="h-6 w-6 text-indigo-600" />
+                  <Trees className="h-6 w-6 text-indigo-600" /> {/* Cambiado el icono */}
                 </div>
                 <CardTitle>Itinerarios Personalizados</CardTitle>
-                <CardDescription>Genera itinerarios basados en tus intereses</CardDescription>
+                <CardDescription>Busca itinerarios basados en tus intereses</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
                 <p className="text-sm text-gray-600">
-                  Genera itinerarios basados en tus intereses, destino y fechas de viaje para aprovechar al máximo tu
+                  Busca itinerarios basados en tus intereses, destino y fechas de viaje para aprovechar al máximo tu
                   experiencia.
                 </p>
               </CardContent>

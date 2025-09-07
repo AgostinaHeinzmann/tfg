@@ -11,20 +11,6 @@ function Footer() {
                 <img src="/imagenes/Agos.png" alt="Logo" className="h-8 w-8 mr-2" />
                 <span className="text-2xl font-bold">TravelSocial</span>
               </div>
-              <div className="flex gap-6">
-                <Link to="#" className="hover:text-indigo-300">
-                  Acerca de
-                </Link>
-                <Link to="#" className="hover:text-indigo-300">
-                  Términos
-                </Link>
-                <Link to="#" className="hover:text-indigo-300">
-                  Privacidad
-                </Link>
-                <Link to="#" className="hover:text-indigo-300">
-                  Contacto
-                </Link>
-              </div>
             </div>
             <div className="border-t border-cute-beige mt-8 pt-8 text-center text-indigo-400 text-sm">
               © 2025 TravelSocial. Todos los derechos reservados.

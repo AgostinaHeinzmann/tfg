@@ -21,29 +21,41 @@ import {
 import { Globe, Mail, Lock } from "lucide-react";
 import { showToast } from "../lib/toast-utils";
 import { logIn, logInwithGoogle } from "@/services/auth";
+import { saveToLocalStorage } from "@/lib/utils";
+
+export const AUTH_ERROR_CODE = "auth/invalid-credential"
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [credentialError, setCredentialError] = useState(""); 
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setEmailError("");
+    setPasswordError("");
+    setCredentialError(""); // <-- limpiar antes de enviar
     const result = await logIn({ email, password });
+    console.log(result);
+
     if (result?.token) {
+      saveToLocalStorage("userData", result)
       showToast.success("Inicio de sesión exitoso", "Bienvenido de vuelta");
-      navigate("/experiencias"); 
-    } else {
-      showToast.error(
-        "Error al iniciar sesión",
-        result?.message || "Intenta nuevamente"
-      );
+      navigate("/experiencias");
+    } else if (
+      result?.code === AUTH_ERROR_CODE
+    ) {
+      setCredentialError("Mail o contraseña incorrecta. Intente de nuevo."); 
     }
   };
 
   const handleGoogleLogin = async () => {
     const result = await logInwithGoogle();
     if (result?.token) {
+      saveToLocalStorage("userData", result)
       showToast.success("Inicio de sesión con Google exitoso");
       navigate("/experiencias");
     } else {
@@ -85,12 +97,18 @@ const LoginPage: React.FC = () => {
                         id="email"
                         type="email"
                         placeholder="tu@email.com"
-                        className="pl-10"
+                        className={`pl-10 ${emailError ? "border-red-500" : ""}`}
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          setEmailError("");
+                        }}
                         required
                       />
                     </div>
+                    {emailError && (
+                      <p className="text-red-600 text-sm mt-1">{emailError}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -108,13 +126,22 @@ const LoginPage: React.FC = () => {
                         id="password"
                         type="password"
                         placeholder="••••••••"
-                        className="pl-10"
+                        className={`pl-10 ${passwordError ? "border-red-500" : ""}`}
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          setPasswordError("");
+                        }}
                         required
                       />
                     </div>
+                    {passwordError && (
+                      <p className="text-red-600 text-sm mt-1">{passwordError}</p>
+                    )}
                   </div>
+                  {credentialError && (
+                    <p className="text-red-600 text-sm mt-1 text-center">{credentialError}</p>
+                  )}
                   <Button
                     type="submit"
                     className="w-full bg-indigo-600 hover:bg-indigo-700"

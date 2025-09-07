@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
@@ -12,53 +10,90 @@ import { Globe, Mail, Lock } from "lucide-react"
 import { Checkbox } from "../components/ui/checkbox"
 import { register as registerUser, logInwithGoogle } from "@/services/auth"
 import { showToast } from "../lib/toast-utils"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+
+const schema = z
+  .object({
+    email: z.email({ message: "Ingrese un correo válido" }),
+    password: z
+      .string()
+      .min(6, { message: "La contraseña debe tener al menos 6 caracteres alfanuméricos" }),
+    confirmPassword: z.string(),
+    acceptTerms: z.boolean().refine((val) => val, { message: "Debes aceptar los términos y condiciones" }),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirmPassword"],
+  })
+
+type FormData = z.infer<typeof schema>
 
 const RegistroPage: React.FC = () => {
   const navigate = useNavigate()
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    confirmPassword: "",
-  })
-  const [acceptTerms, setAcceptTerms] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, touchedFields },
+    setError,
+    watch,
+    trigger,
+    setValue, // <-- agrega esto
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    mode: "onChange",
+    defaultValues: {
+      email: "",
+      password: "",
+      confirmPassword: "",
+      acceptTerms: false,
+    },
+  })
+
+  // Validación manual en cada campo al escribir o dejar de escribir
+  const handleBlur = async (field: keyof FormData) => {
+    await trigger(field)
   }
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (formData.password !== formData.confirmPassword) {
-      showToast.error("Las contraseñas no coinciden")
-      return
-    }
-    if (!acceptTerms) {
-      showToast.error("Debes aceptar los términos y condiciones")
-      return
-    }
-    const result = await registerUser({
-      email: formData.email,
-      password: formData.password,
-    })
-    if (result?.token) {
-      showToast.success("Registro exitoso", "¡Bienvenido!")
-      navigate("/")
-    } else {
-      showToast.error("Error al registrarse", result?.message || "Intenta nuevamente")
+  const onSubmit = async (data: FormData) => {
+    setLoading(true)
+    try {
+      const result = await registerUser({
+        email: data.email,
+        password: data.password,
+      })
+      setLoading(false)
+      if (result?.token) {
+        showToast.success("Registro exitoso", "¡Bienvenido!")
+        navigate("/experiencias")
+      } else if (result?.code === "auth/email-already-in-use") {
+        setError("email", { type: "manual", message: "Este correo ya está registrado" })
+      } else {
+        showToast.error("Ha ocurrido un error. Por favor, inténtelo más tarde")
+      }
+    } catch {
+      setLoading(false)
+      showToast.error("Ha ocurrido un error. Por favor, inténtelo más tarde")
     }
   }
 
   const handleGoogleRegister = async () => {
-    const result = await logInwithGoogle()
-    if (result?.token) {
-      showToast.success("Registro con Google exitoso", "¡Bienvenido!")
-      navigate("/")
-    } else {
-      showToast.error("Error al registrarse con Google", result?.message || "Intenta nuevamente")
+    setLoading(true)
+    try {
+      const result = await logInwithGoogle()
+      setLoading(false)
+      if (result?.token) {
+        showToast.success("Registro con Google exitoso", "¡Bienvenido!")
+        navigate("/experiencias")
+      } else {
+        showToast.error("Ha ocurrido un error. Por favor, inténtelo más tarde")
+      }
+    } catch {
+      setLoading(false)
+      showToast.error("Ha ocurrido un error. Por favor, inténtelo más tarde")
     }
   }
 
@@ -80,22 +115,23 @@ const RegistroPage: React.FC = () => {
                 <TabsTrigger value="google">Google</TabsTrigger>
               </TabsList>
               <TabsContent value="email">
-                <form onSubmit={handleRegister} className="space-y-4">
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
                   <div className="space-y-2">
                     <Label htmlFor="email">Correo electrónico</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
                       <Input
                         id="email"
-                        name="email"
                         type="email"
                         placeholder="tu@email.com"
-                        className="pl-10"
-                        value={formData.email}
-                        onChange={handleChange}
-                        required
+                        className={`pl-10 ${errors.email ? "border-red-500" : ""}`}
+                        {...register("email", { onBlur: () => handleBlur("email") })}
+                        autoComplete="email"
                       />
                     </div>
+                    {touchedFields.email && errors.email && (
+                      <p className="text-red-600 text-sm mt-1">{errors.email.message}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Contraseña</Label>
@@ -103,15 +139,16 @@ const RegistroPage: React.FC = () => {
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
                       <Input
                         id="password"
-                        name="password"
                         type="password"
                         placeholder="••••••••"
-                        className="pl-10"
-                        value={formData.password}
-                        onChange={handleChange}
-                        required
+                        className={`pl-10 ${errors.password ? "border-red-500" : ""}`}
+                        {...register("password", { onBlur: () => handleBlur("password") })}
+                        autoComplete="new-password"
                       />
                     </div>
+                    {touchedFields.password && errors.password && (
+                      <p className="text-red-600 text-sm mt-1">{errors.password.message}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
@@ -119,26 +156,29 @@ const RegistroPage: React.FC = () => {
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
                       <Input
                         id="confirmPassword"
-                        name="confirmPassword"
                         type="password"
                         placeholder="••••••••"
-                        className="pl-10"
-                        value={formData.confirmPassword}
-                        onChange={handleChange}
-                        required
+                        className={`pl-10 ${errors.confirmPassword ? "border-red-500" : ""}`}
+                        {...register("confirmPassword", { onBlur: () => handleBlur("confirmPassword") })}
+                        autoComplete="new-password"
                       />
                     </div>
+                    {touchedFields.confirmPassword && errors.confirmPassword && (
+                      <p className="text-red-600 text-sm mt-1">{errors.confirmPassword.message}</p>
+                    )}
                   </div>
                   <div className="flex items-center space-x-2 mt-4">
                     <Checkbox
                       id="terms"
-                      checked={acceptTerms}
-                      onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
+                      checked={watch("acceptTerms")}
+                      onCheckedChange={(checked) => setValue("acceptTerms", !!checked)}
                       required
                     />
                     <label
                       htmlFor="terms"
-                      className="text-sm text-gray-600 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      className={`text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${
+                        errors.acceptTerms ? "text-red-600" : "text-gray-600"
+                      }`}
                     >
                       Acepto los{" "}
                       <Link to="/terminos" className="text-indigo-600 hover:underline">
@@ -146,15 +186,26 @@ const RegistroPage: React.FC = () => {
                       </Link>
                     </label>
                   </div>
-                  <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700" disabled={!acceptTerms}>
-                    Crear cuenta
+                  {touchedFields.acceptTerms && errors.acceptTerms && (
+                    <p className="text-red-600 text-sm mt-1">{errors.acceptTerms.message}</p>
+                  )}
+                  <Button
+                    type="submit"
+                    className="w-full bg-indigo-600 hover:bg-indigo-700"
+                    disabled={loading}
+                  >
+                    {loading ? "Creando cuenta..." : "Crear cuenta"}
                   </Button>
+                  {/* Mensaje de campos vacíos al enviar */}
+                  {Object.keys(errors).length > 0 && (
+                    <p className="text-red-600 text-sm mt-2">Por favor, complete todos los campos</p>
+                  )}
                 </form>
               </TabsContent>
               <TabsContent value="google">
                 <div className="text-center py-6">
                   <p className="text-gray-600 mb-6">Regístrate rápidamente usando tu cuenta de Google</p>
-                  <Button variant="outline" className="w-full" onClick={handleGoogleRegister}>
+                  <Button variant="outline" className="w-full" onClick={handleGoogleRegister} disabled={loading}>
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                       <path
                         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

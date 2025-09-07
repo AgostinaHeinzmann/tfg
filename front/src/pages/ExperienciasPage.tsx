@@ -1,5 +1,5 @@
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -7,11 +7,18 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Camera, MapPin, Heart, MessageCircle, Share2, MoreHorizontal, Clock, Globe } from "lucide-react"
+import { loadFromLocalStorage } from "@/lib/utils"
+import { set } from "date-fns"
 
 const ExperienciasPage: React.FC = () => {
   const navigate = useNavigate()
   const [newPost, setNewPost] = useState("")
   const [selectedFilter, setSelectedFilter] = useState("Todos")
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [location, setLocation] = useState("")
+  const [showLocationInput, setShowLocationInput] = useState(false)
+  const [user, setUser] = useState<{ displayName: string; photoURL?: string } | null>(null)
 
   const filters = ["Todos", "Barcelona", "Madrid", "Cultura", "Gastronomía", "Aventura"]
 
@@ -64,10 +71,40 @@ const ExperienciasPage: React.FC = () => {
     },
   ]
 
-  const handlePublish = () => {
-    if (newPost.trim()) {
-      // Aquí iría la lógica para publicar la experiencia
+  useEffect(() => {
+    const userData = loadFromLocalStorage("userData")
+    console.log(userData);
+    setUser(userData)
+  }, [])
+
+  // Manejar subida de imagen
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setSelectedImage(file)
+      setImagePreview(URL.createObjectURL(file))
+    }
+  }
+
+  // Manejar publicación
+  const handlePublish = async () => {
+    if (newPost.trim() && user) {
+      // Preparar datos para enviar al backend
+      const formData = new FormData()
+      formData.append("content", newPost)
+      if (selectedImage) formData.append("image", selectedImage)
+      if (location) formData.append("location", location)
+      formData.append("displayName", user.displayName)
+      if (user.photoURL) formData.append("photoURL", user.photoURL)
+
+      // Aquí iría la lógica para enviar formData al backend (ejemplo con fetch)
+      // await fetch("/api/experiencias", { method: "POST", body: formData })
+
       setNewPost("")
+      setSelectedImage(null)
+      setImagePreview(null)
+      setLocation("")
+      setShowLocationInput(false)
     }
   }
 
@@ -77,7 +114,7 @@ const ExperienciasPage: React.FC = () => {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Globe className="h-8 w-8 text-indigo-600" />
+            <Heart className="h-8 w-8 text-indigo-600" />
             <h1 className="text-4xl font-bold text-indigo-900">Experiencias</h1>
           </div>
           <p className="text-gray-600 max-w-2xl mx-auto">Descubre y comparte experiencias de viaje con la comunidad</p>
@@ -88,8 +125,12 @@ const ExperienciasPage: React.FC = () => {
           <CardContent className="pt-6">
             <div className="flex gap-4">
               <Avatar className="h-10 w-10">
-                <AvatarImage src="/placeholder.svg?height=40&width=40" alt="Tu avatar" />
-                <AvatarFallback className="bg-indigo-200 text-indigo-800">TU</AvatarFallback>
+                <AvatarImage src={user?.photoURL || "/placeholder.svg"} alt={user?.displayName || "Tu avatar"} />
+                <AvatarFallback className="bg-indigo-200 text-indigo-800">
+                  {user?.displayName
+                    ? user.displayName.split(" ").map((n) => n[0]).join("")
+                    : "TU"}
+                </AvatarFallback>
               </Avatar>
               <div className="flex-1">
                 <Input
@@ -98,13 +139,47 @@ const ExperienciasPage: React.FC = () => {
                   onChange={(e) => setNewPost(e.target.value)}
                   className="border-0 bg-gray-50 text-base p-4 mb-4"
                 />
+                {/* Imagen subida */}
+                {imagePreview && (
+                  <div className="mb-2">
+                    <img src={imagePreview} alt="Preview" className="w-full h-40 object-cover rounded-lg" />
+                  </div>
+                )}
+                {/* Ubicación */}
+                {showLocationInput && (
+                  <Input
+                    placeholder="Ubicación (ej: Barcelona, España)"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="mb-2"
+                  />
+                )}
                 <div className="flex items-center justify-between">
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" className="text-gray-600">
+                    {/* Botón para subir foto */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-gray-600"
+                      onClick={() => document.getElementById("fileInput")?.click()}
+                    >
                       <Camera className="h-4 w-4 mr-2" />
                       Foto
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-600">
+                    <input
+                      id="fileInput"
+                      type="file"
+                      accept="image/*"
+                      style={{ display: "none" }}
+                      onChange={handleImageChange}
+                    />
+                    {/* Botón para agregar ubicación */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-gray-600"
+                      onClick={() => setShowLocationInput((prev) => !prev)}
+                    >
                       <MapPin className="h-4 w-4 mr-2" />
                       Ubicación
                     </Button>

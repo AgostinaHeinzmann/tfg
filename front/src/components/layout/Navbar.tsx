@@ -28,7 +28,11 @@ import {
 } from "lucide-react";
 import { auth } from "../../../firebase/firebase.config";
 
-const Navbar: React.FC = () => {
+interface NavbarProps {
+  isLoggedIn: boolean; // Puedes usar esto si decides manejar el estado de autenticación desde props
+}
+
+const Navbar: React.FC<NavbarProps> = ({ isLoggedIn }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

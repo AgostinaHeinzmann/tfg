@@ -1,26 +1,25 @@
 import type React from "react"
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
-import { CalendarIcon, MapPin, Palette, Utensils, Music, Mountain, Waves, Moon, Clock } from "lucide-react"
+import { MapPin, Palette, Utensils, Music, Mountain, Waves, Moon, Clock } from "lucide-react"
+import ItinerarioResultadoPage from "./ItinerarioResultadoPage"
+import { Dialog, DialogTrigger } from "@radix-ui/react-dialog"
+import { DialogContent } from "@/components/ui/dialog"
+
 
 const BuscarItinerarioPage: React.FC = () => {
-  const navigate = useNavigate()
   const [destination, setDestination] = useState("")
-  const [date, setDate] = useState<Date>()
   const [duration, setDuration] = useState([5])
-  const [budget, setBudget] = useState("")
   const [selectedInterests, setSelectedInterests] = useState<string[]>([])
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [selectedItinerary, setSelectedItinerary] = useState<any | null>(null)
+  const [showModal, setShowModal] = useState(false)
+  const resultsRef = useRef<HTMLDivElement>(null)
 
   const interests = [
     { id: "cultura", name: "Cultura", icon: Palette },
@@ -62,8 +61,38 @@ const BuscarItinerarioPage: React.FC = () => {
   }
 
   const handleGenerateItinerary = () => {
-    // Aquí iría la lógica para generar el itinerario
-    navigate("/itinerario/resultado")
+    // Simulación de resultados (puedes reemplazar por fetch a tu backend)
+    const results = [
+      {
+        id: "1",
+        destination: destination,
+        duration: duration[0],
+        interests: selectedInterests,
+        description: "Itinerario cultural y gastronómico por " + destination,
+        coverImage: "/imagenes/barcelona.webp",
+      },
+      {
+        id: "2",
+        destination: destination,
+        duration: duration[0] + 2,
+        interests: selectedInterests,
+        description: "Itinerario de aventura y playa en " + destination,
+        coverImage: "/imagenes/playa.jpg",
+      },
+    ]
+    setSearchResults(results)
+    // Guarda la búsqueda en localStorage
+    localStorage.setItem("lastItinerarySearch", JSON.stringify({ destination, duration, selectedInterests }))
+    setTimeout(() => {
+      resultsRef.current?.scrollIntoView({ behavior: "smooth" })
+    }, 100) // pequeño delay para asegurar que el render ocurrió
+  }
+
+  const handleModifySearch = () => {
+    setShowModal(false)
+    setTimeout(() => {
+      resultsRef.current?.scrollIntoView({ behavior: "smooth" })
+    }, 100)
   }
 
   return (
@@ -84,7 +113,7 @@ const BuscarItinerarioPage: React.FC = () => {
             <p className="text-gray-600">Configura los detalles de tu viaje para generar un itinerario personalizado</p>
           </CardHeader>
           <CardContent className="space-y-8">
-            {/* Destination and Date */}
+            {/* Destination */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="destination" className="text-base font-medium">
@@ -100,27 +129,6 @@ const BuscarItinerarioPage: React.FC = () => {
                     onChange={(e) => setDestination(e.target.value)}
                   />
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-base font-medium">Fechas de viaje</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, "PPP", { locale: es }) : "Selecciona una fecha"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      initialFocus
-                      disabled={(date) => date < new Date()}
-                    />
-                  </PopoverContent>
-                </Popover>
               </div>
             </div>
 
@@ -166,15 +174,71 @@ const BuscarItinerarioPage: React.FC = () => {
             <Button
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-lg py-6"
               onClick={handleGenerateItinerary}
-              disabled={!destination || !date || selectedInterests.length === 0}
+              disabled={!destination || selectedInterests.length === 0}
             >
               Buscar itinerario
             </Button>
           </CardContent>
         </Card>
 
-        {/* Popular Itineraries */}
-        <div className="text-center mb-8">
+        {/* Search Results - Debajo del botón */}
+        {searchResults.length > 0 && (
+          <div ref={resultsRef} className="mt-10">
+            <h2 className="text-2xl font-bold text-indigo-900 mb-4">Resultados encontrados</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {searchResults.map((result) => (
+                <Card key={result.id} className="border-indigo-100 hover:shadow-md transition-shadow">
+                  <div className="aspect-video rounded-t-lg overflow-hidden bg-gray-100">
+                    <img
+                      src={result.coverImage || "/placeholder.svg"}
+                      alt={result.destination}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <CardContent className="p-6">
+                    <h3 className="font-bold text-lg text-indigo-900 mb-2">{result.destination}</h3>
+                    <div className="flex items-center gap-2 text-gray-600 mb-2">
+                      <Clock className="h-4 w-4" />
+                      <span>{result.duration} días</span>
+                    </div>
+                    <p className="text-gray-700 mb-2">{result.description}</p>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {result.interests.map((tag: string) => (
+                        <Badge key={tag} variant="outline" className="text-indigo-700 border-indigo-200">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                        onClick={() => {
+                          setSelectedItinerary(result)
+                          setShowModal(true)
+                        }}
+                      >
+                        Ver itinerario
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                        onClick={() => {
+                          navigator.clipboard.writeText(window.location.href + "?itinerary=" + result.id)
+                        }}
+                      >
+                        Compartir
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Popular Itineraries - Al final */}
+        <div className="text-center mb-8 mt-16">
           <h2 className="text-3xl font-bold text-indigo-900 mb-4">Itinerarios recomendados</h2>
           <p className="text-gray-600 max-w-2xl mx-auto">
             Explora itinerarios para inspirarte
@@ -207,7 +271,10 @@ const BuscarItinerarioPage: React.FC = () => {
                 <Button
                   variant="outline"
                   className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                  onClick={() => navigate("/itinerario/resultado")}
+                  onClick={() => {
+                    setSelectedItinerary(itinerary)
+                    setShowModal(true)
+                  }}
                 >
                   Ver itinerario
                 </Button>
@@ -216,6 +283,18 @@ const BuscarItinerarioPage: React.FC = () => {
           ))}
         </div>
       </div>
+      {/* Modal con el resultado */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="max-w-3xl p-0">
+          <div className="max-h-[80vh] overflow-y-auto px-4 py-6">
+            <ItinerarioResultadoPage
+              itinerary={selectedItinerary}
+              onClose={handleModifySearch}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+      
     </div>
   )
 }

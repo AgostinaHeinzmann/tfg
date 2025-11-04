@@ -11,13 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import {
   ChevronLeft,
   Send,
-  Paperclip,
-  ImageIcon,
   MapPin,
   Calendar,
   Clock,
   Users,
-  Info,
   CheckCircle,
 } from "lucide-react"
 
@@ -62,12 +59,22 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
     },
   }
 
-  // Datos de ejemplo del usuario actual
-  const currentUser = {
-    id: "user1",
-    name: "María García",
-    avatar: "/placeholder.svg?height=40&width=40",
-  }
+  // Detectar usuario actual desde localStorage (como en ExperienciasPage)
+  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; avatar?: string; photoURL?: string } | null>(null)
+  useEffect(() => {
+    // Simulación: buscar datos de usuario en localStorage
+    const userData = localStorage.getItem("userData")
+    if (userData) {
+      try {
+        const parsed = JSON.parse(userData)
+        setCurrentUser(parsed)
+      } catch {
+        setCurrentUser({ id: "user1", name: "María García", avatar: "/placeholder.svg?height=40&width=40" })
+      }
+    } else {
+      setCurrentUser({ id: "user1", name: "María García", avatar: "/placeholder.svg?height=40&width=40" })
+    }
+  }, [])
 
   // Mensajes de ejemplo
   const [messages, setMessages] = useState<Message[]>([
@@ -156,11 +163,15 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault()
-    if (newMessage.trim() === "") return
+    if (newMessage.trim() === "" || !currentUser) return
 
     const message: Message = {
       id: Date.now().toString(),
-      sender: currentUser,
+      sender: {
+        id: currentUser.id,
+        name: currentUser.name,
+        avatar: currentUser.photoURL || currentUser.avatar || "/placeholder.svg?height=40&width=40",
+      },
       text: newMessage,
       timestamp: new Date(),
       isCurrentUser: true,
@@ -190,15 +201,7 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
                 <p className="text-sm text-gray-600">Chat del evento</p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-indigo-700"
-              onClick={() => navigate(`/eventos/${event.id}`)}
-            >
-              <Info className="h-4 w-4 mr-1.5" />
-              Detalles
-            </Button>
+              {/* Removed top 'Detalles' button */}
           </div>
         </div>
       </header>
@@ -217,9 +220,8 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
                         <AvatarImage src={message.sender.avatar || "/placeholder.svg"} alt={message.sender.name} />
                         <AvatarFallback className="bg-indigo-200 text-indigo-800 text-xs">
                           {message.sender.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
+                            ? message.sender.name.split(" ").map((n) => n[0]).join("")
+                            : "US"}
                         </AvatarFallback>
                       </Avatar>
                       <div>
@@ -255,12 +257,7 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
             {/* Message input */}
             <div className="border-t border-gray-100 p-3">
               <form onSubmit={handleSendMessage} className="flex gap-2">
-                <Button type="button" variant="ghost" size="icon" className="text-gray-500 hover:text-indigo-600">
-                  <Paperclip className="h-5 w-5" />
-                </Button>
-                <Button type="button" variant="ghost" size="icon" className="text-gray-500 hover:text-indigo-600">
-                  <ImageIcon className="h-5 w-5" />
-                </Button>
+                  {/* Removed Paperclip and ImageIcon buttons for text-only chat */}
                 <Input
                   placeholder="Escribe un mensaje..."
                   value={newMessage}
@@ -309,11 +306,6 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-gray-100">
-                <Button className="w-full" variant="outline" onClick={() => navigate(`/eventos/${event.id}`)}>
-                  Ver detalles completos
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </div>

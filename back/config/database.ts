@@ -1,7 +1,22 @@
-import { Sequelize } from "sequelize"
-import dotenv from "dotenv"
+import { Sequelize } from "sequelize-typescript";
+import dotenv from "dotenv";
+import { User } from "../models/User";
+import { Ciudad } from "../models/Ciudad";
+import { Comentario } from "../models/Comentario";
+import { Direccion } from "../models/Direccion";
+import { Event } from "../models/Event";
+import { EventUser } from "../models/EventUser";
+import { InscripcionEvent } from "../models/InscripcionEvent";
+import { Interes } from "../models/Interes";
+import { Itinerary } from "../models/Itinerario";
+import { ItinerarioDia } from "../models/ItinerarioDia";
+import { ItinerarioUser } from "../models/ItinerarioUser";
+import { MensajeEvent } from "../models/MensajeEvent";
+import { Pais } from "../models/Pais";
+import { Publicacion } from "../models/Publicacion";
+import { PublicacionImagen } from "../models/PublicacionImagen";
 
-dotenv.config()
+dotenv.config();
 
 export const sequelize = new Sequelize({
   dialect: "postgres",
@@ -22,4 +37,21 @@ export const sequelize = new Sequelize({
     underscored: true,
     freezeTableName: true,
   },
-})
+  models: [
+    User,
+    Ciudad,
+    Comentario,
+    Direccion,
+    Event,
+    EventUser,
+    InscripcionEvent,
+    Interes,
+    Itinerary,
+    ItinerarioDia,
+    ItinerarioUser,
+    MensajeEvent,
+    Pais,
+    Publicacion,
+    PublicacionImagen,
+  ],
+});

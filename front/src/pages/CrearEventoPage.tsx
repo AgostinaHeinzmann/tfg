@@ -1,5 +1,5 @@
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
@@ -15,25 +15,92 @@ import { es } from "date-fns/locale"
 import { CalendarIcon, Clock, ImageIcon, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert"
 import { Map } from "../components/map"
+import { showToast } from "../lib/toast-utils"
 
 const CrearEventoPage: React.FC = () => {
   const navigate = useNavigate()
-  const [date, setDate] = useState<Date>()
-  const [ageRestriction, setAgeRestriction] = useState(false)
-  const [minAge, setMinAge] = useState("18")
-  const [eventLocation, setEventLocation] = useState("")
-  const [eventCoordinates, setEventCoordinates] = useState<[number, number]>([41.3851, 2.1734]) // Barcelona por defecto
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    category: "",
+    maxParticipants: "10",
+    location: "",
+    coordinates: [41.3851, 2.1734] as [number, number],
+    date: undefined as Date | undefined,
+    time: "",
+    duration: "2",
+    ageRestriction: false,
+    minAge: "18",
+    privateEvent: false,
+    coverImage: null as File | null,
+  })
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Aquí iría la lógica para crear el evento
-    navigate("/eventos")
+  // Detección de ubicación inicial
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setForm((prev) => ({ ...prev, coordinates: [pos.coords.latitude, pos.coords.longitude] }))
+        },
+        () => {},
+        { enableHighAccuracy: true }
+      )
+    }
+  }, [])
+
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target
+    if (type === "file" && e.target instanceof HTMLInputElement) {
+      setForm({ ...form, coverImage: e.target.files ? e.target.files[0] : null })
+    } else if (type === "checkbox" && e.target instanceof HTMLInputElement) {
+      setForm({ ...form, [name]: e.target.checked })
+    } else {
+      setForm({ ...form, [name]: value })
+      // Geocodificación automática al escribir ubicación
+      if (name === "location" && value.length > 5) {
+        // Ejemplo con Nominatim (OpenStreetMap)
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}`)
+          const data = await res.json()
+          if (data && data.length > 0) {
+            const lat = parseFloat(data[0].lat)
+            const lon = parseFloat(data[0].lon)
+            setForm((prev) => ({ ...prev, coordinates: [lat, lon] }))
+          }
+        } catch (err) {
+          // Si falla, no actualiza coordenadas
+        }
+      }
+    }
   }
 
-  const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEventLocation(e.target.value)
-    // Aquí podrías agregar lógica para geocodificar la dirección
-    // Por ahora mantenemos las coordenadas de Barcelona
+  const handleSelect = (name: string, value: string) => {
+    setForm({ ...form, [name]: value })
+  }
+
+  const handleDateChange = (date: Date | undefined) => {
+    setForm({ ...form, date })
+  }
+
+  const handleMapClick = (coords: [number, number], address: string) => {
+    setForm({ ...form, coordinates: coords, location: address })
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    // Validación
+    if (!form.title || !form.description || !form.category || !form.maxParticipants || !form.location || !form.date || !form.time || !form.duration) {
+      showToast.error("Completa todos los campos obligatorios")
+      return
+    }
+    setLoading(true)
+    // Aquí iría la lógica para guardar el evento en la base de datos
+    setTimeout(() => {
+      setLoading(false)
+      showToast.success("Evento creado", "Tu evento ha sido registrado correctamente.")
+      navigate("/eventos")
+    }, 1200)
   }
 
   return (
@@ -53,7 +120,7 @@ const CrearEventoPage: React.FC = () => {
           </AlertDescription>
         </Alert>
 
-        <form onSubmit={handleSubmit}>
+  <form onSubmit={handleSubmit}>
           <Card className="border-indigo-100 shadow-md mb-6">
             <CardHeader>
               <CardTitle>Información básica</CardTitle>
@@ -62,13 +129,16 @@ const CrearEventoPage: React.FC = () => {
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="title">Título del evento *</Label>
-                <Input id="title" placeholder="Ej. Tour gastronómico por Barcelona" required />
+                <Input id="title" name="title" value={form.title} onChange={handleChange} placeholder="Ej. Tour gastronómico por Barcelona" required />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="description">Descripción *</Label>
                 <Textarea
                   id="description"
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
                   placeholder="Describe tu evento, qué harán los participantes, qué deben llevar, etc."
                   className="min-h-[120px] resize-none"
                   required
@@ -78,7 +148,7 @@ const CrearEventoPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="category">Categoría *</Label>
-                  <Select required>
+                  <Select value={form.category} onValueChange={v => handleSelect("category", v)} required>
                     <SelectTrigger id="category">
                       <SelectValue placeholder="Selecciona una categoría" />
                     </SelectTrigger>
@@ -95,7 +165,7 @@ const CrearEventoPage: React.FC = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="max-participants">Número máximo de participantes *</Label>
-                  <Input id="max-participants" type="number" min="1" max="100" defaultValue="10" required />
+                  <Input id="max-participants" name="maxParticipants" type="number" min="1" max="100" value={form.maxParticipants} onChange={handleChange} required />
                 </div>
               </div>
             </CardContent>
@@ -111,17 +181,18 @@ const CrearEventoPage: React.FC = () => {
                 <Label htmlFor="location">Ubicación *</Label>
                 <Input
                   id="location"
+                  name="location"
                   placeholder="Dirección completa del evento"
-                  value={eventLocation}
-                  onChange={handleLocationChange}
+                  value={form.location}
+                  onChange={handleChange}
                   required
                 />
                 <div className="mt-3">
                   <Map
-                    center={eventCoordinates}
+                    center={form.coordinates}
                     zoom={16}
                     height="200px"
-                    address={eventLocation}
+                    address={form.location}
                     title="Ubicación del evento"
                     showGoogleMapsButton={true}
                   />
@@ -135,14 +206,14 @@ const CrearEventoPage: React.FC = () => {
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start text-left font-normal bg-transparent">
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "PPP", { locale: es }) : "Selecciona una fecha"}
+                        {form.date ? format(form.date, "PPP", { locale: es }) : "Selecciona una fecha"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
                       <Calendar
                         mode="single"
-                        selected={date}
-                        onSelect={setDate}
+                        selected={form.date}
+                        onSelect={handleDateChange}
                         initialFocus
                         disabled={(date) => date < new Date()}
                       />
@@ -154,14 +225,14 @@ const CrearEventoPage: React.FC = () => {
                   <Label htmlFor="time">Hora *</Label>
                   <div className="relative">
                     <Clock className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
-                    <Input id="time" type="time" className="pl-10" required />
+                    <Input id="time" name="time" type="time" className="pl-10" value={form.time} onChange={handleChange} required />
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="duration">Duración (horas) *</Label>
-                <Input id="duration" type="number" min="0.5" step="0.5" defaultValue="2" required />
+                <Input id="duration" name="duration" type="number" min="0.5" step="0.5" value={form.duration} onChange={handleChange} required />
               </div>
             </CardContent>
           </Card>
@@ -179,13 +250,13 @@ const CrearEventoPage: React.FC = () => {
                   </Label>
                   <p className="text-sm text-gray-500">Los participantes deberán verificar su edad para unirse</p>
                 </div>
-                <Switch id="age-restriction" checked={ageRestriction} onCheckedChange={setAgeRestriction} />
+                <Switch id="age-restriction" checked={form.ageRestriction} onCheckedChange={v => setForm({ ...form, ageRestriction: v })} />
               </div>
 
-              {ageRestriction && (
+              {form.ageRestriction && (
                 <div className="space-y-2 pl-6 border-l-2 border-indigo-100">
                   <Label htmlFor="min-age">Edad mínima requerida</Label>
-                  <Select value={minAge} onValueChange={setMinAge}>
+                  <Select value={form.minAge} onValueChange={v => handleSelect("minAge", v)}>
                     <SelectTrigger id="min-age">
                       <SelectValue placeholder="Selecciona la edad mínima" />
                     </SelectTrigger>
@@ -204,7 +275,7 @@ const CrearEventoPage: React.FC = () => {
                   <ImageIcon className="h-8 w-8 mx-auto mb-2 text-gray-400" />
                   <p className="text-sm text-gray-500 mb-1">Arrastra una imagen o haz clic para seleccionar</p>
                   <p className="text-xs text-gray-400">PNG, JPG o JPEG (máx. 5MB)</p>
-                  <Input id="cover-image" type="file" className="hidden" accept="image/*" />
+                  <Input id="cover-image" name="coverImage" type="file" className="hidden" accept="image/*" onChange={handleChange} />
                 </div>
               </div>
 
@@ -215,7 +286,7 @@ const CrearEventoPage: React.FC = () => {
                   </Label>
                   <p className="text-sm text-gray-500">Solo visible para personas con el enlace</p>
                 </div>
-                <Switch id="private-event" />
+                <Switch id="private-event" checked={form.privateEvent} onCheckedChange={v => setForm({ ...form, privateEvent: v })} />
               </div>
             </CardContent>
           </Card>
@@ -224,8 +295,8 @@ const CrearEventoPage: React.FC = () => {
             <Button type="button" variant="outline" onClick={() => navigate(-1)}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
-              Crear evento
+            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700" disabled={loading}>
+              {loading ? "Creando..." : "Crear evento"}
             </Button>
           </div>
         </form>

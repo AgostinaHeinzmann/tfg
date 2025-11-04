@@ -1,4 +1,3 @@
-//import { User } from "models"
 import {
   Table,
   Column,
@@ -9,7 +8,15 @@ import {
   AllowNull,
   Default,
   ForeignKey,
+  BelongsTo,
+  HasMany,
 } from "sequelize-typescript"
+import { User } from "./User"
+import Direccion from "./Direccion"
+import MensajeEvent from "./MensajeEvent"
+import InscripcionEvent from "./InscripcionEvent"
+import EventUser from "./EventUser"
+import Interes from "./Interes"
 
 @Table({
   tableName: "evento",
@@ -21,12 +28,12 @@ export class Event extends Model<Event> {
   @Column(DataType.INTEGER)
   evento_id!: number
 
-  //@ForeignKey(() => Object) // Reemplaza Object por el modelo Direccion si lo tienes
+  @ForeignKey(() => Direccion)
   @AllowNull(true)
   @Column(DataType.INTEGER)
   direccion_id?: number | null
 
-  //@ForeignKey(() => User) // Reemplaza Object por el modelo User si lo tienes
+  @ForeignKey(() => User)
   @AllowNull(true)
   @Column(DataType.INTEGER)
   usuario_id?: number | null
@@ -59,18 +66,36 @@ export class Event extends Model<Event> {
   @Column(DataType.TEXT)
   descripcion_evento?: string | null
 
-  @Default(false)
   @AllowNull(true)
-  @Column(DataType.BOOLEAN)
-  evento_oficial?: boolean | null
+  @Column(DataType.DATE)
+  fecha_inicio?: Date | null
 
   @AllowNull(true)
-  @Column(DataType.STRING) // Sequelize no tiene DataType.INTERVAL, puedes usar STRING
+  @Column(DataType.STRING)
   duracion?: string | null
 
   @AllowNull(true)
   @Column(DataType.INTEGER)
   imagen_id?: number | null
+
+  // Associations
+  @BelongsTo(() => User, { foreignKey: 'usuario_id', targetKey: 'usuario_id' })
+  usuario?: User
+
+  @BelongsTo(() => Direccion, { foreignKey: 'direccion_id', targetKey: 'direccion_id' })
+  direccion?: Direccion
+
+  @HasMany(() => MensajeEvent, { sourceKey: 'evento_id', foreignKey: 'evento_id' })
+  mensajes?: MensajeEvent[]
+
+  @HasMany(() => InscripcionEvent, { sourceKey: 'evento_id', foreignKey: 'evento_id' })
+  inscripciones?: InscripcionEvent[]
+
+  @HasMany(() => EventUser, { sourceKey: 'evento_id', foreignKey: 'evento_id' })
+  eventUsers?: EventUser[]
+
+  @HasMany(() => Interes, { sourceKey: 'evento_id', foreignKey: 'evento_id' })
+  intereses?: Interes[]
 }
 
 export default Event

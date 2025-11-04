@@ -10,14 +10,30 @@ import {
   AllowNull,
   HasMany,
 } from "sequelize-typescript"
+import type { Optional } from "sequelize"
 import bcrypt from "bcryptjs"
 import { Event } from "./Event"
+
+export interface UserAttributes {
+  usuario_id?: number
+  uid: string | undefined
+  nombre: string
+  apellido: string
+  verificacion?: boolean
+  email: string
+  contrasena: string
+  imagen_perfil_id?: string | null
+  edad_dni?: number | null
+  fecha_registro?: Date
+}
+
+export interface UserCreationAttributes extends Optional<UserAttributes, "usuario_id" | "verificacion" | "imagen_perfil_id" | "edad_dni" | "fecha_registro"> {}
 
 @Table({
   tableName: "usuario",
   timestamps: false,
 })
-export class User extends Model<User> {
+export class User extends Model<UserAttributes, UserCreationAttributes> {
   @PrimaryKey
   @AutoIncrement
   @Column(DataType.INTEGER)

@@ -1,5 +1,5 @@
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "../components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
@@ -25,17 +25,32 @@ import {
 const PerfilPage: React.FC = () => {
   const navigate = useNavigate()
   const [isVerified, setIsVerified] = useState(false)
-
-  // Datos de ejemplo
-  const userData = {
+  const [userData, setUserData] = useState({
     name: "Agostina Heinzmann",
     email: "agos.heinzmann@gmail.com",
     location: "Córdoba, Argentina",
     joinDate: "Junio 2025",
     avatar: "/imagenes/image.png?height=100&width=100",
-  }
+    photoURL: ""
+  })
+  const [editProfileOpen, setEditProfileOpen] = useState(false)
+  const [editName, setEditName] = useState(userData.name)
+  const [editPhoto, setEditPhoto] = useState(userData.photoURL || userData.avatar)
+  useEffect(() => {
+    // Detectar datos de usuario desde localStorage (o backend)
+    const userLocal = localStorage.getItem("userData")
+    if (userLocal) {
+      try {
+        const parsed = JSON.parse(userLocal)
+        setUserData((prev) => ({ ...prev, ...parsed }))
+        setEditName(parsed.name || parsed.displayName || userData.name)
+        setEditPhoto(parsed.photoURL || parsed.avatar || userData.avatar)
+      } catch {}
+    }
+  }, [])
 
-  const itineraries = [
+  // Preparado para datos desde la base de datos
+  const [itineraries, setItineraries] = useState([
     {
       id: 1,
       destination: "Barcelona, España",
@@ -50,9 +65,8 @@ const PerfilPage: React.FC = () => {
       date: "10-14 Junio, 2023",
       image: "/imagenes/roma.jpg?height=200&width=300",
     },
-  ]
-
-  const events = [
+  ])
+  const [events, setEvents] = useState([
     {
       id: 1,
       title: "Tour gastronómico por Barcelona",
@@ -69,15 +83,84 @@ const PerfilPage: React.FC = () => {
       time: "10:00 - 12:00",
       image: "/imagenes/sagradafamilia.jpeg?height=200&width=300",
     },
-  ]
+  ])
+  const [showItineraryModal, setShowItineraryModal] = useState<{ open: boolean; itinerary: any | null }>({ open: false, itinerary: null })
+  const [showEventModal, setShowEventModal] = useState<{ open: boolean; event: any | null }>({ open: false, event: null })
 
   const handleVerifyIdentity = () => {
+  const handleEditProfile = () => {
+    setEditProfileOpen(true)
+  }
+  const handleSaveProfile = () => {
+    setUserData((prev) => ({ ...prev, name: editName, photoURL: editPhoto }))
+    setEditProfileOpen(false)
+    // Aquí iría la lógica para guardar en backend
+  }
     navigate("/verificar-identidad")
   }
 
+  function handleEditProfile(event: React.MouseEvent<HTMLButtonElement, MouseEvent>): void {
+    event.preventDefault()
+    setEditProfileOpen(true)
+  }
+
+  function handleSaveProfile(): void {
+    setUserData((prev) => ({ ...prev, name: editName, photoURL: editPhoto }))
+    setEditProfileOpen(false)
+    // Aquí iría la lógica para guardar en backend
+  }
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white py-12 px-4">
       <div className="container mx-auto max-w-5xl">
+        {/* Modal editar perfil */}
+        {editProfileOpen && (
+          <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
+            <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
+              <h2 className="text-xl font-bold mb-4">Editar perfil</h2>
+              <div className="flex flex-col items-center mb-4">
+                <Avatar className="w-24 h-24 border-4 border-white shadow-md mb-2">
+                  <AvatarImage src={editPhoto || "/placeholder.svg"} alt={editName} />
+                  <AvatarFallback className="text-2xl bg-indigo-200 text-indigo-800">
+                    {editName.split(" ").map((n) => n[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="mt-2"
+                  onChange={e => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      setEditPhoto(URL.createObjectURL(file))
+                    }
+                  }}
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Nombre</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1 text-gray-400">Apellido (no editable)</label>
+                <input
+                  type="text"
+                  value={userData.name.split(" ").slice(1).join(" ")}
+                  disabled
+                  className="w-full border rounded px-3 py-2 bg-gray-100 text-gray-400"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setEditProfileOpen(false)}>Cancelar</Button>
+                <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleSaveProfile}>Guardar</Button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Perfil del usuario */}
           <div className="md:col-span-1">
@@ -85,7 +168,7 @@ const PerfilPage: React.FC = () => {
               <CardHeader className="text-center pb-4">
                 <div className="relative mx-auto mb-4 w-24 h-24">
                   <Avatar className="w-24 h-24 border-4 border-white shadow-md">
-                    <AvatarImage src={userData.avatar || "/placeholder.svg"} alt={userData.name} />
+                    <AvatarImage src={userData.photoURL || userData.avatar || "/placeholder.svg"} alt={userData.name} />
                     <AvatarFallback className="text-2xl bg-indigo-200 text-indigo-800">
                       {userData.name
                         .split(" ")
@@ -93,7 +176,7 @@ const PerfilPage: React.FC = () => {
                         .join("")}
                     </AvatarFallback>
                   </Avatar>
-                  <button className="absolute bottom-0 right-0 bg-indigo-600 text-white p-1.5 rounded-full shadow-md hover:bg-indigo-700">
+                  <button className="absolute bottom-0 right-0 bg-indigo-600 text-white p-1.5 rounded-full shadow-md hover:bg-indigo-700" onClick={handleEditProfile}>
                     <Camera className="h-4 w-4" />
                   </button>
                 </div>
@@ -134,7 +217,7 @@ const PerfilPage: React.FC = () => {
                 )}
 
                 <div className="pt-4 border-t border-gray-100 space-y-3">
-                  <Button variant="outline" className="w-full justify-start text-gray-700">
+                  <Button variant="outline" className="w-full justify-start text-gray-700" onClick={handleEditProfile}>
                     <Edit className="h-4 w-4 mr-2" />
                     Editar perfil
                   </Button>
@@ -159,7 +242,7 @@ const PerfilPage: React.FC = () => {
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-bold text-indigo-900">Mis itinerarios</h2>
-                    <Button className="bg-indigo-600 hover:bg-indigo-700">Crear nuevo itinerario</Button>
+                    <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={() => navigate('/buscar-itinerario')}>Buscar itinerarios</Button>
                   </div>
 
                   {itineraries.length > 0 ? (
@@ -190,6 +273,7 @@ const PerfilPage: React.FC = () => {
                               <Button
                                 variant="outline"
                                 className="flex-1 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                                onClick={() => setShowItineraryModal({ open: true, itinerary })}
                               >
                                 <Eye className="h-4 w-4 mr-2" />
                                 Ver
@@ -213,9 +297,20 @@ const PerfilPage: React.FC = () => {
                         <p className="text-gray-600 mb-6 text-center max-w-md">
                           Crea tu primer itinerario personalizado para planificar tu próxima aventura
                         </p>
-                        <Button className="bg-indigo-600 hover:bg-indigo-700">Crear itinerario</Button>
+                        <Button className="bg-indigo-600 hover:bg-indigo-700">Buscar itinerarios</Button>
                       </CardContent>
                     </Card>
+                  )}
+                  {/* Modal itinerario */}
+                  {showItineraryModal.open && (
+                    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
+                      <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl p-6">
+                        {/* Aquí se puede importar y mostrar ItinerarioResultadoPage */}
+                        <h2 className="text-xl font-bold mb-4">Detalle del itinerario</h2>
+                        {/* Reemplazar por <ItinerarioResultadoPage itinerary={showItineraryModal.itinerary} onClose={() => setShowItineraryModal({ open: false, itinerary: null })} /> */}
+                        <Button className="mt-4" onClick={() => setShowItineraryModal({ open: false, itinerary: null })}>Cerrar</Button>
+                      </div>
+                    </div>
                   )}
                 </div>
               </TabsContent>
@@ -224,13 +319,7 @@ const PerfilPage: React.FC = () => {
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-bold text-indigo-900">Mis eventos</h2>
-                    <Button
-                      className="bg-indigo-600 hover:bg-indigo-700"
-                      onClick={() => navigate("/crear-evento")}
-                      disabled={!isVerified}
-                    >
-                      Crear nuevo evento
-                    </Button>
+                    <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={() => navigate('/eventos')}>Buscar eventos</Button>
                   </div>
 
                   {events.length > 0 ? (
@@ -267,9 +356,10 @@ const PerfilPage: React.FC = () => {
                               <Button
                                 variant="outline"
                                 className="flex-1 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                                onClick={() => navigate(`/eventos/chat/${event.id}`)}
+                                onClick={() => setShowEventModal({ open: true, event })}
                               >
-                                Chat
+                                <Eye className="h-4 w-4 mr-2" />
+                                Ver
                               </Button>
                               <Button variant="outline" className="flex-1 border-red-200 text-red-700 hover:bg-red-50">
                                 Cancelar
@@ -289,11 +379,20 @@ const PerfilPage: React.FC = () => {
                         <p className="text-gray-600 mb-6 text-center max-w-md">
                           Únete a eventos para conectar con otros viajeros y vivir experiencias únicas
                         </p>
-                        <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={() => navigate("/eventos")}>
-                          Explorar eventos
-                        </Button>
+                        <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={() => navigate("/eventos")}>Buscar eventos</Button>
                       </CardContent>
                     </Card>
+                  )}
+                  {/* Modal evento */}
+                  {showEventModal.open && (
+                    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
+                      <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl p-6">
+                        {/* Aquí se puede importar y mostrar EventoDetalleModal */}
+                        <h2 className="text-xl font-bold mb-4">Detalle del evento</h2>
+                        {/* Reemplazar por <EventoDetalleModal event={showEventModal.event} open={true} onClose={() => setShowEventModal({ open: false, event: null })} /> */}
+                        <Button className="mt-4" onClick={() => setShowEventModal({ open: false, event: null })}>Cerrar</Button>
+                      </div>
+                    </div>
                   )}
                 </div>
               </TabsContent>

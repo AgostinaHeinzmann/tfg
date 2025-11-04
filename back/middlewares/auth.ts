@@ -1,43 +1,47 @@
-import type { Request, Response, NextFunction } from "express"
-import jwt from "jsonwebtoken"
-import { User } from "../models"
-import type { JwtPayload } from "../types/auth"
-import type { ApiResponse } from "../types/api"
+import admin from "../config/firebase";
+import type { RequestHandler } from "express";
+import { ApiResponse } from "types/api";
 
-const auth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const token = req.header("Authorization")?.replace("Bearer ", "")
-
-    if (!token) {
-      const response: ApiResponse = {
-        success: false,
-        message: "Token de acceso requerido",
-      }
-      res.status(401).json(response)
-      return
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        uid: string;
+      };
     }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key") as JwtPayload
-    const user = await User.findByPk(decoded.userId)
-
-    if (!user || !user.isActive) {
-      const response: ApiResponse = {
-        success: false,
-        message: "Token inválido",
-      }
-      res.status(401).json(response)
-      return
-    }
-
-    req.user = user.toJSON()
-    next()
-  } catch (error) {
-    const response: ApiResponse = {
-      success: false,
-      message: "Token inválido",
-    }
-    res.status(401).json(response)
   }
 }
 
-export default auth
+const auth: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+    
+    if (!token) {
+      const response: ApiResponse = {
+        success: false,
+        message: "Acceso denegado",
+      };
+      res.status(401).json(response);
+      return;
+    }
+
+    const decodeValue = await admin.auth().verifyIdToken(token);
+    
+    if (!decodeValue) {
+      res.status(401).json({message: 'Token inválido'});
+      return;
+    }
+
+    // Agregar información del usuario al request
+    req.user = {
+      uid: decodeValue.uid,
+    };
+
+    // Token válido, continuar
+    next();
+  } catch (error) {
+    res.status(401).json({message: 'Acceso denegado'});
+  }
+};
+
+export default auth;

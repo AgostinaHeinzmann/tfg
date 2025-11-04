@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
-import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Badge } from "../components/ui/badge"
 import { Avatar, AvatarFallback } from "../components/ui/avatar"
 import { Calendar, MapPin, Clock, Users, Plus, CheckCircle, Eye } from "lucide-react"
-import EventModal from "../components/EventModal"
+import EventoDetalleModal from "./EventoDetallePage"
+import { showToast } from "../lib/toast-utils"
 
 const EventosPage: React.FC = () => {
   const navigate = useNavigate()
@@ -111,7 +111,6 @@ const EventosPage: React.FC = () => {
                   <div className="space-y-2">
                     <div className="font-medium">Categoría</div>
                     <div className="flex flex-wrap gap-2">
-                      <Badge className="cursor-pointer bg-indigo-600 hover:bg-indigo-700">Todos</Badge>
                       <Badge className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200">Cultura</Badge>
                       <Badge className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200">Gastronomía</Badge>
                       <Badge className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200">Aventura</Badge>
@@ -140,15 +139,6 @@ const EventosPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="font-medium">Tipo</div>
-                    <div className="flex flex-wrap gap-2">
-                      <Badge className="cursor-pointer bg-indigo-600 hover:bg-indigo-700">Todos</Badge>
-                      <Badge className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200">Oficial</Badge>
-                      <Badge className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200">Usuario</Badge>
-                    </div>
-                  </div>
-
                   <Button className="w-full">Aplicar filtros</Button>
                 </CardContent>
               </Card>
@@ -156,14 +146,6 @@ const EventosPage: React.FC = () => {
 
             {/* Events List */}
             <div className="lg:col-span-3">
-              <Tabs defaultValue="all" className="w-full mb-8">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="all">Todos</TabsTrigger>
-                  <TabsTrigger value="official">Oficiales</TabsTrigger>
-                  <TabsTrigger value="user">Usuarios</TabsTrigger>
-                </TabsList>
-              </Tabs>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {events.map((event) => (
                   <EventCard key={event.id} event={event} />
@@ -177,86 +159,112 @@ const EventosPage: React.FC = () => {
   )
 }
 
+import { useState } from "react"
+
 function EventCard({ event }: { event: any }) {
   const navigate = useNavigate()
+  const [modalOpen, setModalOpen] = useState(false)
+
+  const handleOpenModal = () => {
+    setModalOpen(true)
+  }
+
+  const handleJoin = () => {
+    // Simulación de verificación de requisitos
+    const isVerified = false // Aquí deberías obtener el estado real de verificación del usuario
+    if (event.ageRestriction && !isVerified) {
+      showToast.warning(
+        "Verificación requerida",
+        `Este evento tiene restricción de edad (+${event.minAge}). Debes verificar tu identidad para poder unirte.`
+      )
+      navigate("/verificar-identidad")
+    } else {
+      showToast.success(
+        "¡Te has unido al evento!",
+        "Tu inscripción fue exitosa."
+      )
+    }
+  }
 
   return (
-    <Card className="overflow-hidden border-indigo-100 hover:shadow-md transition-shadow">
-      <div className="relative h-48 overflow-hidden">
-        <img src={event.image || "/placeholder.svg"} alt={event.title} className="w-full h-full object-cover" />
-        <div className="absolute top-3 right-3">
-          <Badge className={`${event.isOfficial ? "bg-indigo-600" : "bg-orange-500"}`}>
-            {event.isOfficial ? (
-              <span className="flex items-center gap-1">
-                <CheckCircle className="h-3 w-3" />
-                Oficial
-              </span>
-            ) : (
-              "Usuario"
-            )}
-          </Badge>
-        </div>
-        <div className="absolute top-3 left-3">
-          <Badge className="bg-white/90 text-indigo-800">{event.category}</Badge>
-        </div>
-        {event.ageRestriction && (
-          <div className="absolute bottom-3 left-3">
-            <Badge className="bg-amber-500">+{event.minAge}</Badge>
+    <>
+      <Card className="overflow-hidden border-indigo-100 hover:shadow-md transition-shadow">
+        <div className="relative h-48 overflow-hidden">
+          <img src={event.image || "/placeholder.svg"} alt={event.title} className="w-full h-full object-cover" />
+          <div className="absolute top-3 right-3">
+            <Badge className={`${event.isOfficial ? "bg-indigo-600" : "bg-orange-500"}`}>
+              {event.isOfficial ? (
+                <span className="flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3" />
+                  Oficial
+                </span>
+              ) : (
+                "Usuario"
+              )}
+            </Badge>
           </div>
-        )}
-      </div>
-      <CardContent className="p-4">
-        <h3 className="font-bold text-lg text-indigo-900 mb-2">{event.title}</h3>
-        <div className="space-y-2 text-sm text-gray-600 mb-4">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-indigo-600" />
-            <span>{event.location}</span>
+          <div className="absolute top-3 left-3">
+            <Badge className="bg-white/90 text-indigo-800">{event.category}</Badge>
           </div>
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-indigo-600" />
-            <span>{event.date}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-indigo-600" />
-            <span>{event.time}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-indigo-600" />
-            <span>
-              {event.participants}/{event.maxParticipants} participantes
-            </span>
-          </div>
-        </div>
-
-        <div className="flex -space-x-2 mb-4">
-          {[...Array(4)].map((_, i) => (
-            <Avatar key={i} className="border-2 border-white w-8 h-8">
-              <AvatarFallback className="bg-indigo-200 text-indigo-800 text-xs">
-                {String.fromCharCode(65 + i)}
-              </AvatarFallback>
-            </Avatar>
-          ))}
-          {event.participants > 4 && (
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 border-2 border-white text-xs font-medium">
-              +{event.participants - 4}
+          {event.ageRestriction && (
+            <div className="absolute bottom-3 left-3">
+              <Badge className="bg-amber-500">+{event.minAge}</Badge>
             </div>
           )}
         </div>
+        <CardContent className="p-4">
+          <h3 className="font-bold text-lg text-indigo-900 mb-2">{event.title}</h3>
+          <div className="space-y-2 text-sm text-gray-600 mb-4">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-indigo-600" />
+              <span>{event.location}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-indigo-600" />
+              <span>{event.date}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-indigo-600" />
+              <span>{event.time}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-indigo-600" />
+              <span>
+                {event.participants}/{event.maxParticipants} participantes
+              </span>
+            </div>
+          </div>
 
-        <div className="flex gap-2">
-          <EventModal event={event}>
-            <Button variant="outline" className="flex-1 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+          <div className="flex -space-x-2 mb-4">
+            {[...Array(4)].map((_, i) => (
+              <Avatar key={i} className="border-2 border-white w-8 h-8">
+                <AvatarFallback className="bg-indigo-200 text-indigo-800 text-xs">
+                  {String.fromCharCode(65 + i)}
+                </AvatarFallback>
+              </Avatar>
+            ))}
+            {event.participants > 4 && (
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 border-2 border-white text-xs font-medium">
+                +{event.participants - 4}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1 border-indigo-200 text-indigo-700 hover:bg-indigo-50" onClick={handleOpenModal}>
               <Eye className="h-4 w-4 mr-2" />
               Ver evento
             </Button>
-          </EventModal>
-
-          <Button className="flex-1 bg-indigo-600 hover:bg-indigo-700" onClick={() => navigate(`/eventos/${event.id}`)}>
-            Unirse
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+            <Button className="flex-1 bg-indigo-600 hover:bg-indigo-700" onClick={handleJoin}>
+              Unirse
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      {modalOpen && (
+        <EventoDetalleModal event={event} open={modalOpen} onClose={() => setModalOpen(false)} />
+      )}
+    </>
   )
 }
 

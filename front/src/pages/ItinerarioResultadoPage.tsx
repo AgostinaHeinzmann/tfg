@@ -7,11 +7,9 @@ import { Badge } from "../components/ui/badge"
 import {
   MapPin,
   Calendar,
-  Euro,
   Bookmark,
   Share2,
   Download,
-  ChevronLeft,
   ExternalLink,
   Info,
   Star,
@@ -45,12 +43,19 @@ type ItineraryDay = {
   activities: Activity[]
 }
 
-const ItinerarioResultadoPage: React.FC = () => {
+type ItinerarioResultadoPageProps = {
+  open?: boolean
+  itinerary?: any
+  onClose?: () => void
+}
+
+const ItinerarioResultadoPage: React.FC<ItinerarioResultadoPageProps> = ({ itinerary, onClose }) => {
+
   const navigate = useNavigate()
   const [isSaved, setIsSaved] = useState(false)
 
   // Datos de ejemplo para el itinerario generado
-  const itineraryData = {
+  const itineraryData = itinerary || {
     destination: "París, Francia",
     duration: 5,
     interests: ["Museos", "Arte", "Historia"],
@@ -120,13 +125,13 @@ const ItinerarioResultadoPage: React.FC = () => {
     // Aquí iría la lógica para guardar el itinerario
   }
 
+  if (!itinerary) {
+    return <div className="p-8 text-center text-gray-500">No hay datos de itinerario.</div>
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <div className="container mx-auto max-w-5xl py-12 px-4">
-        <Button variant="ghost" className="mb-6 text-indigo-700" onClick={() => navigate(-1)}>
-          <ChevronLeft className="h-4 w-4 mr-1" />
-          Volver a búsqueda
-        </Button>
 
         {/* Encabezado del itinerario */}
         <div className="relative rounded-xl overflow-hidden h-[300px] mb-6">
@@ -138,7 +143,7 @@ const ItinerarioResultadoPage: React.FC = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
           <div className="absolute bottom-0 left-0 p-6 text-white">
             <div className="flex gap-2 mb-2">
-              {itineraryData.interests.map((interest, index) => (
+              {itineraryData.interests.map((interest: string, index: number) => (
                 <Badge key={index} className="bg-indigo-600">
                   {interest}
                 </Badge>
@@ -150,9 +155,6 @@ const ItinerarioResultadoPage: React.FC = () => {
               <div className="flex items-center gap-1.5">
                 <Calendar className="h-4 w-4" />
                 <span>{itineraryData.duration} días</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Euro className="h-4 w-4" />
               </div>
             </div>
           </div>
@@ -211,109 +213,113 @@ const ItinerarioResultadoPage: React.FC = () => {
         </Card>
 
         {/* Vista por día */}
-        <Accordion type="single" collapsible defaultValue="day-1" className="mb-8">
-          {itineraryData.days.map((day) => (
-            <AccordionItem key={`day-${day.day}`} value={`day-${day.day}`}>
-              <AccordionTrigger className="hover:bg-indigo-50 px-4 rounded-lg">
-                <div className="flex items-center">
-                  <div className="bg-indigo-100 text-indigo-800 w-8 h-8 rounded-full flex items-center justify-center mr-3">
-                    {day.day}
+        {Array.isArray(itineraryData.days) && itineraryData.days.length > 0 ? (
+          <Accordion type="single" collapsible defaultValue="day-1" className="mb-8">
+            {itineraryData.days.map((day: ItineraryDay) => (
+              <AccordionItem key={`day-${day.day}`} value={`day-${day.day}`}>
+                <AccordionTrigger className="hover:bg-indigo-50 px-4 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="bg-indigo-100 text-indigo-800 w-8 h-8 rounded-full flex items-center justify-center mr-3">
+                      {day.day}
+                    </div>
+                    <span className="font-medium">Día {day.day}</span>
                   </div>
-                  <span className="font-medium">Día {day.day}</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-4">
-                <div className="space-y-6 pt-2 pb-4">
-                  {day.activities.map((activity, index) => (
-                    <div
-                      key={activity.id}
-                      className="relative pl-8 border-l-2 border-indigo-200 pb-6 last:border-l-0 last:pb-0"
-                    >
-                      <div className="absolute left-[-9px] top-0 w-4 h-4 rounded-full bg-indigo-600"></div>
-                      <div className="mb-2 flex items-center">
-                        <span className="text-sm text-gray-500 mr-3">{activity.time}</span>
-                        <Badge
-                          className={`${
-                            activity.type === "museo"
-                                ? "bg-orange-100 text-orange-800"
-                                : activity.type === "atracción"
-                                  ? "bg-purple-100 text-purple-800"
-                                  : activity.type === "transporte"
-                                    ? "bg-gray-100 text-gray-800"
-                                    : "bg-green-100 text-green-800"
-                          }`}
-                        >
-                          <span className="flex items-center gap-1">
-                            {getActivityIcon(activity.type)}
-                            {activity.type.charAt(0).toUpperCase() + activity.type.slice(1)}
-                          </span>
-                        </Badge>
-                      </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-4">
+                  <div className="space-y-6 pt-2 pb-4">
+                    {day.activities.map((activity, index) => (
+                      <div
+                        key={activity.id}
+                        className="relative pl-8 border-l-2 border-indigo-200 pb-6 last:border-l-0 last:pb-0"
+                      >
+                        <div className="absolute left-[-9px] top-0 w-4 h-4 rounded-full bg-indigo-600"></div>
+                        <div className="mb-2 flex items-center">
+                          <span className="text-sm text-gray-500 mr-3">{activity.time}</span>
+                          <Badge
+                            className={`${
+                              activity.type === "museo"
+                                  ? "bg-orange-100 text-orange-800"
+                                  : activity.type === "atracción"
+                                    ? "bg-purple-100 text-purple-800"
+                                    : activity.type === "transporte"
+                                      ? "bg-gray-100 text-gray-800"
+                                      : "bg-green-100 text-green-800"
+                            }`}
+                          >
+                            <span className="flex items-center gap-1">
+                              {getActivityIcon(activity.type)}
+                              {activity.type.charAt(0).toUpperCase() + activity.type.slice(1)}
+                            </span>
+                          </Badge>
+                        </div>
 
-                      <Card className="border-indigo-100">
-                        <CardContent className="p-4">
-                          <div className="flex flex-col md:flex-row gap-4">
-                            <div className="md:w-1/4">
-                              <div className="rounded-md overflow-hidden h-32">
-                                <img
-                                  src={activity.imageUrl || "/placeholder.svg"}
-                                  alt={activity.title}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            </div>
-                            <div className="md:w-3/4">
-                              <h3 className="font-bold text-lg text-indigo-900 mb-1">{activity.title}</h3>
-                              <div className="flex items-center gap-2 mb-2">
-                                <div className="flex items-center">
-                                  <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                                  <span className="ml-1 text-sm">{activity.rating}</span>
-                                </div>
-                                <span className="text-sm text-gray-500">•</span>
-                                <span className="text-sm text-gray-500">{activity.duration}</span>
-                                <span className="text-sm text-gray-500">•</span>
-                              </div>
-                              <p className="text-gray-700 text-sm mb-3">{activity.description}</p>
-                              <div className="space-y-2">
-                                <div className="flex items-start gap-2">
-                                  <MapPin className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
-                                  <div>
-                                    <p className="text-sm font-medium">{activity.location}</p>
-                                    <p className="text-xs text-gray-500">{activity.address}</p>
-                                  </div>
-                                </div>
-                                {activity.ticketUrl && (
-                                  <div className="mt-3">
-                                    <Button variant="outline" size="sm" className="text-indigo-700 bg-transparent" asChild>
-                                      <Link to={activity.ticketUrl} target="_blank" rel="noopener noreferrer">
-                                        <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                                        Comprar entradas
-                                      </Link>
-                                    </Button>
-                                  </div>
-                                )}
-                                <div className="mt-3">
-                                  <Map
-                                    center={activity.coordinates}
-                                    zoom={16}
-                                    height="150px"
-                                    address={activity.address}
-                                    title={activity.title}
-                                    showGoogleMapsButton={false}
+                        <Card className="border-indigo-100">
+                          <CardContent className="p-4">
+                            <div className="flex flex-col md:flex-row gap-4">
+                              <div className="md:w-1/4">
+                                <div className="rounded-md overflow-hidden h-32">
+                                  <img
+                                    src={activity.imageUrl || "/placeholder.svg"}
+                                    alt={activity.title}
+                                    className="w-full h-full object-cover"
                                   />
                                 </div>
                               </div>
+                              <div className="md:w-3/4">
+                                <h3 className="font-bold text-lg text-indigo-900 mb-1">{activity.title}</h3>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="flex items-center">
+                                    <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                                    <span className="ml-1 text-sm">{activity.rating}</span>
+                                  </div>
+                                  <span className="text-sm text-gray-500">•</span>
+                                  <span className="text-sm text-gray-500">{activity.duration}</span>
+                                  <span className="text-sm text-gray-500">•</span>
+                                </div>
+                                <p className="text-gray-700 text-sm mb-3">{activity.description}</p>
+                                <div className="space-y-2">
+                                  <div className="flex items-start gap-2">
+                                    <MapPin className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+                                    <div>
+                                      <p className="text-sm font-medium">{activity.location}</p>
+                                      <p className="text-xs text-gray-500">{activity.address}</p>
+                                    </div>
+                                  </div>
+                                  {activity.ticketUrl && (
+                                    <div className="mt-3">
+                                      <Button variant="outline" size="sm" className="text-indigo-700 bg-transparent" asChild>
+                                        <Link to={activity.ticketUrl} target="_blank" rel="noopener noreferrer">
+                                          <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                                          Comprar entradas
+                                        </Link>
+                                      </Button>
+                                    </div>
+                                  )}
+                                  <div className="mt-3">
+                                    <Map
+                                      center={activity.coordinates}
+                                      zoom={16}
+                                      height="150px"
+                                      address={activity.address}
+                                      title={activity.title}
+                                      showGoogleMapsButton={false}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        ) : (
+          <div className="p-8 text-center text-gray-500">Este itinerario no tiene actividades detalladas.</div>
+        )}
 
         {/* Mapa general */}
         <Card className="border-indigo-100 shadow-md mb-8">
@@ -388,7 +394,11 @@ const ItinerarioResultadoPage: React.FC = () => {
 
         {/* Botones de acción */}
         <div className="flex flex-wrap gap-3 justify-end">
-          <Button variant="outline" onClick={() => navigate(-1)}>
+          <Button
+            variant="ghost"
+            className="mb-6 text-indigo-700"
+            onClick={onClose}
+          >
             Modificar búsqueda
           </Button>
           <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleSaveItinerary}>

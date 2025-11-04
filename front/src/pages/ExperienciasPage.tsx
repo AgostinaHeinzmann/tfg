@@ -8,19 +8,22 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Camera, MapPin, Heart, MessageCircle, Share2, MoreHorizontal, Clock, Globe } from "lucide-react"
 import { loadFromLocalStorage } from "@/lib/utils"
-import { set } from "date-fns"
+
+const allFilters = ["Barcelona", "Madrid", "Valencia", "Cultura", "Gastronomía", "Aventura"]
 
 const ExperienciasPage: React.FC = () => {
   const navigate = useNavigate()
   const [newPost, setNewPost] = useState("")
-  const [selectedFilter, setSelectedFilter] = useState("Todos")
+  const [filterQuery, setFilterQuery] = useState("")
+  const [selectedFilter, setSelectedFilter] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [location, setLocation] = useState("")
   const [showLocationInput, setShowLocationInput] = useState(false)
   const [user, setUser] = useState<{ displayName: string; photoURL?: string } | null>(null)
 
-  const filters = ["Todos", "Barcelona", "Madrid", "Cultura", "Gastronomía", "Aventura"]
+  // Estado para los filtros seleccionados
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([])
 
   // Datos de ejemplo para las experiencias
   const experiences = [
@@ -193,21 +196,56 @@ const ExperienciasPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-2 mb-8">
-          {filters.map((filter) => (
-            <Badge
-              key={filter}
-              className={`cursor-pointer px-4 py-2 ${
-                selectedFilter === filter
-                  ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-                  : "bg-gray-100 text-gray-800 hover:bg-gray-200"
-              }`}
-              onClick={() => setSelectedFilter(filter)}
-            >
-              {filter}
-            </Badge>
-          ))}
+        {/* Buscador de filtros */}
+        <div className="mb-8">
+          <Input
+            placeholder="Buscar filtro (ej: Madrid, Cultura...)"
+            value={filterQuery}
+            onChange={e => setFilterQuery(e.target.value)}
+            className="mb-2 max-w-xs"
+          />
+          <div className="flex flex-wrap gap-2 mb-2">
+            {/* Sugerencias de filtros según lo que escribe el usuario */}
+            {allFilters
+              .filter(
+                f =>
+                  f.toLowerCase().includes(filterQuery.toLowerCase()) &&
+                  !selectedFilters.includes(f)
+              )
+              .map(filter => (
+                <Badge
+                  key={filter}
+                  className="cursor-pointer px-4 py-2 bg-gray-100 text-gray-800 hover:bg-gray-200"
+                  onClick={() => {
+                    setSelectedFilters([...selectedFilters, filter]);
+                    setFilterQuery(""); // limpiar input al agregar
+                  }}
+                >
+                  {filter}
+                </Badge>
+              ))}
+          </div>
+          {/* Filtros seleccionados */}
+          <div className="flex flex-wrap gap-2">
+            {selectedFilters.map(filter => (
+              <Badge
+                key={filter}
+                className="px-4 py-2 bg-indigo-600 text-white flex items-center gap-1"
+              >
+                {filter}
+                <button
+                  type="button"
+                  className="ml-1 text-xs hover:text-red-200"
+                  onClick={() =>
+                    setSelectedFilters(selectedFilters.filter(f => f !== filter))
+                  }
+                  aria-label={`Quitar filtro ${filter}`}
+                >
+                  &#10005;
+                </button>
+              </Badge>
+            ))}
+          </div>
         </div>
 
         {/* Experiences Feed */}

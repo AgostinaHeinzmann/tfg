@@ -6,6 +6,7 @@ import {
   PrimaryKey,
   ForeignKey,
   AllowNull,
+  BelongsTo,
 } from "sequelize-typescript"
 import { User } from "./User"
 import Itinerary from "./Itinerario"
@@ -26,6 +27,13 @@ export class ItinerarioUser extends Model<ItinerarioUser> {
   @AllowNull(false)
   @Column(DataType.INTEGER)
   itinerario_id!: number
+
+  // Associations
+  @BelongsTo(() => User, { foreignKey: 'usuario_id', targetKey: 'usuario_id' })
+  usuario?: User
+
+  @BelongsTo(() => Itinerary, { foreignKey: 'itinerario_id', targetKey: 'itinerario_id' })
+  itinerario?: Itinerary
 }
 
 export default ItinerarioUser

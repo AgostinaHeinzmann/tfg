@@ -8,9 +8,13 @@ import {
   AllowNull,
   Default,
   ForeignKey,
+  BelongsTo,
+  HasMany,
 } from "sequelize-typescript"
 import Ciudad from "./Ciudad"
 import { User } from "./User"
+import ItinerarioDia from "./ItinerarioDia"
+import ItinerarioUser from "./ItinerarioUser"
 
 @Table({
   tableName: "itinerario",
@@ -64,6 +68,19 @@ export class Itinerary extends Model<Itinerary> {
   @AllowNull(true)
   @Column(DataType.TEXT)
   enlace_oficial?: string | null
+
+  // Associations
+  @BelongsTo(() => Ciudad, { foreignKey: 'ciudad_id', targetKey: 'ciudad_id' })
+  ciudad?: Ciudad
+
+  @BelongsTo(() => User, { foreignKey: 'usuario_id', targetKey: 'usuario_id' })
+  usuario?: User
+
+  @HasMany(() => ItinerarioDia, { sourceKey: 'itinerario_id', foreignKey: 'itinerario_id' })
+  itinerariosDia?: ItinerarioDia[]
+
+  @HasMany(() => ItinerarioUser, { sourceKey: 'itinerario_id', foreignKey: 'itinerario_id' })
+  usuariosSeguidos?: ItinerarioUser[]
 }
 
 export default Itinerary

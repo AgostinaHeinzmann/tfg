@@ -8,9 +8,13 @@ import {
   ForeignKey,
   AllowNull,
   Default,
+  BelongsTo,
+  HasMany,
 } from "sequelize-typescript"
 import { User } from "./User"
 import Ciudad from "./Ciudad"
+import Comentario from "./Comentario"
+import PublicacionImagen from "./PublicacionImagen"
 
 @Table({
   tableName: "publicacion",
@@ -45,6 +49,19 @@ export class Publicacion extends Model<Publicacion> {
   @AllowNull(true)
   @Column(DataType.TEXT)
   descripcion?: string | null
+
+  // Associations
+  @BelongsTo(() => User, { foreignKey: 'usuario_id', targetKey: 'usuario_id' })
+  usuario?: User
+
+  @BelongsTo(() => Ciudad, { foreignKey: 'ciudad_id', targetKey: 'ciudad_id' })
+  ciudad?: Ciudad
+
+  @HasMany(() => Comentario, { sourceKey: 'publicacion_id', foreignKey: 'publicacion_id' })
+  comentarios?: Comentario[]
+
+  @HasMany(() => PublicacionImagen, { sourceKey: 'publicacion_id', foreignKey: 'publicacion_id' })
+  imagenes?: PublicacionImagen[]
 }
 
 export default Publicacion

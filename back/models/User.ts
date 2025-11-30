@@ -13,6 +13,7 @@ import {
 import type { Optional } from "sequelize"
 import bcrypt from "bcryptjs"
 import { Event } from "./Event"
+import VerificacionIdentidad from "./VerificacionIdentidad"
 
 export interface UserAttributes {
   usuario_id?: number
@@ -82,6 +83,9 @@ export class User extends Model<UserAttributes, UserCreationAttributes> {
 
   @HasMany(() => Event, { foreignKey: 'usuario_id', sourceKey: 'usuario_id' })
   events?: Event[]
+
+  @HasMany(() => VerificacionIdentidad, { foreignKey: 'usuario_id', sourceKey: 'usuario_id' })
+  verificaciones?: VerificacionIdentidad[]
 
   // Método de instancia para verificar contraseña
   async checkPassword(password: string): Promise<boolean> {

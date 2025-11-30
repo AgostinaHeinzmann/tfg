@@ -1,4 +1,4 @@
-import { Table, Column, Model, DataType, PrimaryKey, AutoIncrement, ForeignKey, AllowNull } from "sequelize-typescript"
+import { Table, Column, Model, DataType, PrimaryKey, AutoIncrement, ForeignKey, AllowNull, BelongsTo } from "sequelize-typescript"
 import Itinerary from "./Itinerario"
 import Direccion from "./Direccion"
 
@@ -38,5 +38,12 @@ export class ItinerarioDia extends Model<ItinerarioDia> {
   @AllowNull(true)
   @Column(DataType.TEXT)
   interes?: string | null
+
+  // Associations
+  @BelongsTo(() => Itinerary, { foreignKey: 'itinerario_id', targetKey: 'itinerario_id' })
+  itinerario?: Itinerary
+
+  @BelongsTo(() => Direccion, { foreignKey: 'direccion_id', targetKey: 'direccion_id' })
+  direccion?: Direccion
 }
 export default ItinerarioDia

@@ -9,16 +9,17 @@ export const client = axios.create({
 
 // Interceptor para agregar el Authorization Bearer token
 client.interceptors.request.use(
-  (config) => {
+  async (config: any) => {
     const user = auth.currentUser
     if (user) {
-      // Nota: Esto es síncrono, así que solo funcionará si el usuario ya tiene un token en caché
-      user.getIdToken(/* forceRefresh */ false).then(token => {
-        config.headers = {
-          ...config.headers,
-          Authorization: `Bearer ${token}`,
+      try {
+        const token = await user.getIdToken(/* forceRefresh */ false)
+        if (config.headers) {
+          config.headers.Authorization = `Bearer ${token}`
         }
-      })
+      } catch (error) {
+        console.error('Error getting Firebase token:', error)
+      }
     }
     return config
   },

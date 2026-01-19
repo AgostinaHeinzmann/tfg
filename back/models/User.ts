@@ -13,8 +13,6 @@ import {
 import type { Optional } from "sequelize"
 import bcrypt from "bcryptjs"
 import { Event } from "./Event"
-import VerificacionIdentidad from "./VerificacionIdentidad"
-
 export interface UserAttributes {
   usuario_id?: number
   uid: string | undefined
@@ -24,11 +22,11 @@ export interface UserAttributes {
   email: string
   contrasena: string
   imagen_perfil_id?: string | null
-  edad_dni?: number | null
+  fecha_nacimiento?: Date | null
   fecha_registro?: Date
 }
 
-export interface UserCreationAttributes extends Optional<UserAttributes, "usuario_id" | "verificacion" | "imagen_perfil_id" | "edad_dni" | "fecha_registro"> {}
+export interface UserCreationAttributes extends Optional<UserAttributes, "usuario_id" | "verificacion" | "imagen_perfil_id" | "fecha_registro" | "fecha_nacimiento"> { }
 
 @Table({
   tableName: "usuario",
@@ -72,8 +70,8 @@ export class User extends Model<UserAttributes, UserCreationAttributes> {
   imagen_perfil_id?: string | null
 
   @AllowNull(true)
-  @Column(DataType.INTEGER)
-  edad_dni?: number | null
+  @Column(DataType.DATEONLY)
+  fecha_nacimiento?: Date | null
 
   @Default(DataType.NOW)
   @AllowNull(false)
@@ -84,8 +82,6 @@ export class User extends Model<UserAttributes, UserCreationAttributes> {
   @HasMany(() => Event, { foreignKey: 'usuario_id', sourceKey: 'usuario_id' })
   events?: Event[]
 
-  @HasMany(() => VerificacionIdentidad, { foreignKey: 'usuario_id', sourceKey: 'usuario_id' })
-  verificaciones?: VerificacionIdentidad[]
 
   // Método de instancia para verificar contraseña
   async checkPassword(password: string): Promise<boolean> {

@@ -24,7 +24,7 @@ export interface CreateEventData {
   imagen_id?: number
 }
 
-export interface UpdateEventData extends Partial<CreateEventData> {}
+export interface UpdateEventData extends Partial<CreateEventData> { }
 
 /**
  * Obtener todos los eventos con filtros opcionales
@@ -32,7 +32,7 @@ export interface UpdateEventData extends Partial<CreateEventData> {}
 export const getAllEvents = async (filters?: EventFilters) => {
   try {
     const params = new URLSearchParams()
-    
+
     if (filters?.location) params.append('location', filters.location)
     if (filters?.interests) params.append('interests', filters.interests)
     if (filters?.ageGroup !== undefined) params.append('ageGroup', filters.ageGroup.toString())
@@ -139,3 +139,15 @@ export const unregisterUserFromEvent = async (eventId: number, usuarioId: number
   }
 }
 
+/**
+ * Obtener eventos de un usuario (creados y unidos)
+ */
+export const getUserEvents = async (usuarioId: number) => {
+  try {
+    const response = await client.get(`/event/user/${usuarioId}`)
+    return (response.data as any).data // El backend devuelve { success: true, data: [...] }
+  } catch (error: any) {
+    console.error('Error fetching user events:', error)
+    throw error
+  }
+}

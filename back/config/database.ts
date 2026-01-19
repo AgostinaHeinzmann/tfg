@@ -15,7 +15,6 @@ import { MensajeEvent } from "../models/MensajeEvent";
 import { Pais } from "../models/Pais";
 import { Publicacion } from "../models/Publicacion";
 import { PublicacionImagen } from "../models/PublicacionImagen";
-
 dotenv.config();
 
 export const sequelize = new Sequelize({
@@ -25,7 +24,7 @@ export const sequelize = new Sequelize({
   database: process.env.DB_NAME,
   username: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  logging: process.env.NODE_ENV === "development" ? console.log : false,
+  logging:false,
   pool: {
     max: 5,
     min: 0,

@@ -31,19 +31,7 @@ export const getAllEvents = async (
     let whereClause: any = {};
 
     // Añadir condiciones solo si los parámetros están presentes
-    if (location && location !== '') {
-      whereClause[Op.or] = {
-        "$direccion.ciudad.pais.nombre$": location,
-        "$direccion.ciudad.nombre$": location
-      };
-    }
 
-    if (interests && interests !== '') {
-      const interestsArray = (interests as string).split(",").filter(i => i.trim() !== '');
-      if (interestsArray.length > 0) {
-        whereClause["$intereses.tipo$"] = { [Op.in]: interestsArray };
-      }
-    }
 
     if (ageGroup && !isNaN(Number(ageGroup))) {
       const ageGroupNumber = Number(ageGroup);
@@ -71,19 +59,29 @@ export const getAllEvents = async (
         {
           model: Interes,
           as: 'intereses',
-          required: false
+          required: !!(interests && interests !== ''),
+          where: interests && interests !== '' ? {
+            tipo: { [Op.in]: (interests as string).split(",").filter(i => i.trim() !== '') }
+          } : undefined
         },
-        { 
+        {
           model: Direccion,
-          required: false,
+          required: !!(location && location !== ''),
           include: [
             {
               model: Ciudad,
-              required: false,
+              required: !!(location && location !== ''),
+              where: location && location !== '' ? {
+                [Op.or]: [
+                  { nombre: { [Op.iLike]: `%${location}%` } },
+                  { '$pais.nombre$': { [Op.iLike]: `%${location}%` } }
+                ]
+              } : undefined,
               include: [
                 {
                   model: Pais,
-                  required: false
+                  required: false,
+                  as: 'pais'
                 }
               ]
             }
@@ -106,8 +104,8 @@ export const getAllEvents = async (
   } catch (error) {
     console.error('Error fetching events:', error);
     if (!res.headersSent) {
-      res.status(500).json({ 
-        success: false, 
+      res.status(500).json({
+        success: false,
         message: "Error fetching events",
         error: error instanceof Error ? error.message : 'Unknown error'
       });
@@ -202,13 +200,13 @@ export const createEvent = async (
 ): Promise<void> => {
   console.log('Request body:', req.body);
   try {
-    const { 
-      nombre_evento, 
-      descripcion_evento, 
-      fecha_inicio, 
-      horario, 
-      duracion, 
-      cant_participantes, 
+    const {
+      nombre_evento,
+      descripcion_evento,
+      fecha_inicio,
+      horario,
+      duracion,
+      cant_participantes,
       restriccion_edad,
       direccion_id,
       usuario_id,
@@ -219,9 +217,9 @@ export const createEvent = async (
 
     // Validaciones básicas
     if (!nombre_evento || !usuario_id) {
-      res.status(400).json({ 
-        success: false, 
-        message: "nombre_evento and usuario_id are required" 
+      res.status(400).json({
+        success: false,
+        message: "nombre_evento and usuario_id are required"
       });
       return;
     }
@@ -229,9 +227,9 @@ export const createEvent = async (
     // Verificar que el usuario exista
     const userExists = await User.findByPk(usuario_id);
     if (!userExists) {
-      res.status(404).json({ 
-        success: false, 
-        message: "User not found" 
+      res.status(404).json({
+        success: false,
+        message: "User not found"
       });
       return;
     }
@@ -240,9 +238,9 @@ export const createEvent = async (
     if (direccion_id) {
       const direccionExists = await Direccion.findByPk(direccion_id);
       if (!direccionExists) {
-        res.status(404).json({ 
-          success: false, 
-          message: "Address not found" 
+        res.status(404).json({
+          success: false,
+          message: "Address not found"
         });
         return;
       }
@@ -308,13 +306,13 @@ export const updateEvent = async (
       return;
     }
 
-    const { 
-      nombre_evento, 
-      descripcion_evento, 
-      fecha_inicio, 
-      horario, 
-      duracion, 
-      cant_participantes, 
+    const {
+      nombre_evento,
+      descripcion_evento,
+      fecha_inicio,
+      horario,
+      duracion,
+      cant_participantes,
       restriccion_edad,
       direccion_id,
       usuario_id,
@@ -327,9 +325,9 @@ export const updateEvent = async (
     if (usuario_id) {
       const userExists = await User.findByPk(usuario_id);
       if (!userExists) {
-        res.status(404).json({ 
-          success: false, 
-          message: "User not found" 
+        res.status(404).json({
+          success: false,
+          message: "User not found"
         });
         return;
       }
@@ -339,9 +337,9 @@ export const updateEvent = async (
     if (direccion_id) {
       const direccionExists = await Direccion.findByPk(direccion_id);
       if (!direccionExists) {
-        res.status(404).json({ 
-          success: false, 
-          message: "Address not found" 
+        res.status(404).json({
+          success: false,
+          message: "Address not found"
         });
         return;
       }
@@ -583,6 +581,149 @@ export const unregisterUserFromEvent = async (
       res.status(500).json({
         success: false,
         message: "Error unregistering user from event",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+};
+
+export const sendEventMessage = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { usuario_id, mensaje } = req.body;
+
+    // Validar que el id del evento sea un número válido
+    if (!id || isNaN(Number(id))) {
+      res.status(400).json({ success: false, message: "Invalid event ID" });
+      return;
+    }
+
+    // Validar que mensaje esté presente
+    if (!mensaje || mensaje.trim() === '') {
+      res.status(400).json({ success: false, message: "mensaje is required" });
+      return;
+    }
+
+    // Verificar que el evento exista
+    const event = await Event.findByPk(Number(id));
+    if (!event) {
+      res.status(404).json({ success: false, message: "Event not found" });
+      return;
+    }
+
+    // Verificar que el usuario exista si se proporciona
+    if (usuario_id) {
+      const user = await User.findByPk(Number(usuario_id));
+      if (!user) {
+        res.status(404).json({ success: false, message: "User not found" });
+        return;
+      }
+    }
+
+    // Crear el mensaje
+    const newMessage = await MensajeEvent.create({
+      evento_id: Number(id),
+      usuario_id: usuario_id ? Number(usuario_id) : null,
+      mensaje: mensaje.trim(),
+      fecha_creacion: new Date()
+    } as any);
+
+    res.status(201).json({
+      success: true,
+      message: "Message sent successfully",
+      data: newMessage
+    });
+
+  } catch (error) {
+    console.error('Error sending event message:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: "Error sending event message",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+};
+
+export const getUserEvents = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { usuario_id } = req.params;
+
+    if (!usuario_id || isNaN(Number(usuario_id))) {
+      res.status(400).json({ success: false, message: "Invalid user ID" });
+      return;
+    }
+
+    // Obtener eventos creados por el usuario
+    const createdEvents = await Event.findAll({
+      where: { usuario_id: Number(usuario_id) },
+      attributes: ['evento_id', 'nombre_evento', 'imagen_id', 'fecha_inicio'],
+      include: [
+        {
+          model: Direccion,
+          attributes: ['calle', 'numero'],
+          include: [{ model: Ciudad, attributes: ['nombre'] }]
+        }
+      ]
+    });
+
+    // Obtener eventos a los que el usuario se ha unido
+    const joinedEvents = await InscripcionEvent.findAll({
+      where: { usuario_id: Number(usuario_id) },
+      include: [
+        {
+          model: Event,
+          attributes: ['evento_id', 'nombre_evento', 'imagen_id', 'fecha_inicio'],
+          include: [
+            {
+              model: Direccion,
+              attributes: ['calle', 'numero'],
+              include: [{ model: Ciudad, attributes: ['nombre'] }]
+            }
+          ]
+        }
+      ]
+    });
+
+    // Formatear respuesta
+    const events = [
+      ...createdEvents.map(e => ({
+        id: e.evento_id,
+        title: e.nombre_evento,
+        image: e.imagen_id ? `/api/images/${e.imagen_id}` : '/placeholder.svg', // Ajustar según lógica de imágenes
+        date: e.fecha_inicio,
+        role: 'Anfitrión'
+      })),
+      ...joinedEvents.map(i => ({
+        id: i.evento?.evento_id,
+        title: i.evento?.nombre_evento,
+        image: i.evento?.imagen_id ? `/api/images/${i.evento?.imagen_id}` : '/placeholder.svg',
+        date: i.evento?.fecha_inicio,
+        role: 'Participante'
+      }))
+    ];
+
+    // Eliminar duplicados (si el creador también se inscribió)
+    const uniqueEvents = Array.from(new Map(events.map(item => [item.id, item])).values());
+
+    res.status(200).json({
+      success: true,
+      data: uniqueEvents
+    });
+
+  } catch (error) {
+    console.error('Error fetching user events:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: "Error fetching user events",
         error: error instanceof Error ? error.message : 'Unknown error'
       });
     }

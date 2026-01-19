@@ -10,6 +10,9 @@ import { MapPin, Palette, Utensils, Music, Mountain, Waves, Moon, Clock } from "
 import ItinerarioResultadoPage from "./ItinerarioResultadoPage"
 import { Dialog, DialogTrigger } from "@radix-ui/react-dialog"
 import { DialogContent } from "@/components/ui/dialog"
+import { searchItineraries, saveItineraryToProfile } from "@/services/itinerarioService"
+import { showToast } from "@/lib/toast-utils"
+import { auth } from "../../firebase/firebase.config"
 
 
 const BuscarItinerarioPage: React.FC = () => {
@@ -60,32 +63,42 @@ const BuscarItinerarioPage: React.FC = () => {
     )
   }
 
-  const handleGenerateItinerary = () => {
-    // Simulación de resultados (puedes reemplazar por fetch a tu backend)
-    const results = [
-      {
-        id: "1",
-        destination: destination,
-        duration: duration[0],
-        interests: selectedInterests,
-        description: "Itinerario cultural y gastronómico por " + destination,
-        coverImage: "/imagenes/barcelona.webp",
-      },
-      {
-        id: "2",
-        destination: destination,
-        duration: duration[0] + 2,
-        interests: selectedInterests,
-        description: "Itinerario de aventura y playa en " + destination,
-        coverImage: "/imagenes/playa.jpg",
-      },
-    ]
-    setSearchResults(results)
-    // Guarda la búsqueda en localStorage
-    localStorage.setItem("lastItinerarySearch", JSON.stringify({ destination, duration, selectedInterests }))
-    setTimeout(() => {
-      resultsRef.current?.scrollIntoView({ behavior: "smooth" })
-    }, 100) // pequeño delay para asegurar que el render ocurrió
+  const handleGenerateItinerary = async () => {
+    if (!destination) {
+      showToast.warning("Destino requerido", "Por favor ingresa un destino para buscar itinerarios")
+      return
+    }
+
+    if (selectedInterests.length === 0) {
+      showToast.warning("Intereses requeridos", "Por favor selecciona al menos un interés")
+      return
+    }
+
+    try {
+      const filters = {
+        destination,
+        duration: `${duration[0]} ${duration[0] === 1 ? 'día' : 'días'}`,
+        interests: selectedInterests.join(',')
+      }
+
+      const response: any = await searchItineraries(filters)
+      setSearchResults(response.data || [])
+
+      if (!response.data || response.data.length === 0) {
+        showToast.info("Sin resultados", "No se encontraron itinerarios para los criterios seleccionados")
+      }
+
+      // Guardar en localStorage
+      localStorage.setItem("lastItinerarySearch", JSON.stringify({ destination, duration, selectedInterests }))
+
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: "smooth" })
+      }, 100)
+    } catch (error: any) {
+      console.error("Error searching itineraries:", error)
+      showToast.error("Error al buscar", error.message || "No se pudieron cargar los itinerarios")
+      setSearchResults([])
+    }
   }
 
   const handleModifySearch = () => {
@@ -155,11 +168,10 @@ const BuscarItinerarioPage: React.FC = () => {
                     <Button
                       key={interest.id}
                       variant={isSelected ? "default" : "outline"}
-                      className={`h-auto p-4 flex flex-col items-center gap-2 ${
-                        isSelected
-                          ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-                          : "border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                      }`}
+                      className={`h-auto p-4 flex flex-col items-center gap-2 ${isSelected
+                        ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                        : "border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                        }`}
                       onClick={() => toggleInterest(interest.id)}
                     >
                       <Icon className="h-6 w-6" />
@@ -294,7 +306,7 @@ const BuscarItinerarioPage: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
-      
+
     </div>
   )
 }

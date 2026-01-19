@@ -40,3 +40,21 @@ export const loginBackend = async (data: LoginData) => {
   }
 }
 
+/**
+ * Sincronizar usuario de Firebase con el backend
+ */
+export const syncUserBackend = async (data: {
+  email: string,
+  uid: string,
+  nombre?: string,
+  apellido?: string,
+  imagen_perfil?: string
+}) => {
+  try {
+    const response = await client.post('/auth/sync', data)
+    return response.data
+  } catch (error: any) {
+    console.error('Error syncing user:', error)
+    throw error
+  }
+}

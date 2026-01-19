@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { Op } from "sequelize";
+import { Op, Sequelize } from "sequelize";
 import Itinerary from "../models/Itinerario";
 import ItinerarioUser from "../models/ItinerarioUser";
 import ItinerarioDia from "../models/ItinerarioDia";
@@ -25,7 +25,11 @@ export const searchItineraries = async (
 
     // Filtrar por duración
     if (duration && duration !== '') {
-      whereClause.duracion = { [Op.iLike]: `%${duration}%` };
+      // Intentar buscar por coincidencia parcial en el texto convertido
+      whereClause[Op.and] = [
+        ...(whereClause[Op.and] || []),
+        Sequelize.where(Sequelize.cast(Sequelize.col('duracion'), 'text'), { [Op.iLike]: `%${(duration as string).split(' ')[0]}%` })
+      ];
     }
 
     // Filtrar por intereses
@@ -148,7 +152,7 @@ export const updateItinerary = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const { 
+    const {
       ciudad_id,
       mensaje,
       fecha_viaje,

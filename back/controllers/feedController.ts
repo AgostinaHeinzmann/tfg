@@ -5,6 +5,7 @@ import Comentario from "../models/Comentario";
 import { User } from "../models/User";
 import Ciudad from "../models/Ciudad";
 import PublicacionImagen from "../models/PublicacionImagen";
+import PublicacionLike from "../models/PublicacionLike";
 
 // GET: Obtener feed con filtros (búsqueda por ciudad)
 export const getFeed = async (req: Request, res: Response): Promise<void> => {
@@ -338,13 +339,19 @@ export const deleteFeed = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-// POST: Agregar me gusta a publicación
+// POST: Toggle me gusta a publicación
 export const likePublication = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const { usuario_id } = req.body; // Necesitamos el usuario_id para saber quién da like
 
     if (!id || isNaN(Number(id))) {
       res.status(400).json({ success: false, message: "Invalid publication ID" });
+      return;
+    }
+
+    if (!usuario_id) {
+      res.status(400).json({ success: false, message: "usuario_id is required" });
       return;
     }
 
@@ -354,22 +361,48 @@ export const likePublication = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    // Incrementar me gusta
-    publicacion.me_gusta = (publicacion.me_gusta || 0) + 1;
+    // Verificar si ya existe el like
+    const existingLike = await PublicacionLike.findOne({
+      where: {
+        publicacion_id: Number(id),
+        usuario_id: Number(usuario_id)
+      }
+    });
+
+    let liked = false;
+
+    if (existingLike) {
+      // Si existe, lo quitamos (dislike)
+      await existingLike.destroy();
+      publicacion.me_gusta = Math.max(0, (publicacion.me_gusta || 0) - 1);
+      liked = false;
+    } else {
+      // Si no existe, lo creamos (like)
+      await PublicacionLike.create({
+        publicacion_id: Number(id),
+        usuario_id: Number(usuario_id)
+      } as any);
+      publicacion.me_gusta = (publicacion.me_gusta || 0) + 1;
+      liked = true;
+    }
+
     await publicacion.save();
 
     res.status(200).json({
       success: true,
-      message: "Like added successfully",
-      data: publicacion
+      message: liked ? "Like added successfully" : "Like removed successfully",
+      data: {
+        ...publicacion.toJSON(),
+        liked // Devolvemos el estado actual para el usuario
+      }
     });
 
   } catch (error) {
-    console.error('Error liking publication:', error);
+    console.error('Error toggling like:', error);
     if (!res.headersSent) {
       res.status(500).json({
         success: false,
-        message: "Error liking publication",
+        message: "Error toggling like",
         error: error instanceof Error ? error.message : 'Unknown error'
       });
     }

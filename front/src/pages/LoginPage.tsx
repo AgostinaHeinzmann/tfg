@@ -21,6 +21,7 @@ import {
 import { Globe, Mail, Lock } from "lucide-react";
 import { showToast } from "../lib/toast-utils";
 import { logIn, logInwithGoogle } from "@/services/auth";
+import { syncUserBackend } from "@/services/authService";
 import { saveToLocalStorage } from "@/lib/utils";
 
 export const AUTH_ERROR_CODE = "auth/invalid-credential"
@@ -31,7 +32,7 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState("");
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
-  const [credentialError, setCredentialError] = useState(""); 
+  const [credentialError, setCredentialError] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,22 +43,62 @@ const LoginPage: React.FC = () => {
     console.log(result);
 
     if (result?.token) {
-      saveToLocalStorage("userData", result)
-      showToast.success("Inicio de sesión exitoso", "Bienvenido de vuelta");
-      navigate("/experiencias");
+      try {
+        // Sincronizar con backend para obtener usuario_id
+        const backendUser = await syncUserBackend({
+          email: result.email,
+          uid: result.uid,
+          nombre: result.displayName?.split(' ')[0] || 'Usuario',
+          apellido: result.displayName?.split(' ').slice(1).join(' ') || '',
+          imagen_perfil: result.photoURL
+        })
+
+        // Guardar datos combinados
+        const userData = {
+          ...result,
+          ...backendUser.user // Incluye usuario_id
+        }
+
+        saveToLocalStorage("userData", userData)
+        showToast.success("Inicio de sesión exitoso", "Bienvenido de vuelta");
+        navigate("/experiencias");
+      } catch (error) {
+        console.error("Error syncing user:", error)
+        showToast.error("Error de sincronización", "No se pudo conectar con el servidor")
+      }
     } else if (
       result?.code === AUTH_ERROR_CODE
     ) {
-      setCredentialError("Mail o contraseña incorrecta. Intente de nuevo."); 
+      setCredentialError("Mail o contraseña incorrecta. Intente de nuevo.");
     }
   };
 
   const handleGoogleLogin = async () => {
     const result = await logInwithGoogle();
     if (result?.token) {
-      saveToLocalStorage("userData", result)
-      showToast.success("Inicio de sesión con Google exitoso");
-      navigate("/experiencias");
+      try {
+        // Sincronizar con backend para obtener usuario_id
+        const backendUser = await syncUserBackend({
+          email: result.email,
+          uid: result.uid,
+          nombre: result.displayName?.split(' ')[0] || 'Usuario',
+          apellido: result.displayName?.split(' ').slice(1).join(' ') || '',
+          imagen_perfil: result.photoURL
+        })
+
+        // Guardar datos combinados
+        const userData = {
+          ...result,
+          ...backendUser.user // Incluye usuario_id
+        }
+
+        saveToLocalStorage("userData", userData)
+        showToast.success("Inicio de sesión con Google exitoso");
+        navigate("/experiencias");
+      } catch (error) {
+        console.error("Error syncing user:", error)
+        showToast.error("Error de sincronización", "No se pudo conectar con el servidor")
+      }
     } else {
       showToast.error(
         "Error al iniciar sesión con Google",

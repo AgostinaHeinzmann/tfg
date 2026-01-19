@@ -1,5 +1,6 @@
 import express from "express"
 import dotenv from "dotenv"
+import cors from "cors"
 
 import { sequelize } from "./config/database"
 
@@ -15,11 +16,18 @@ dotenv.config();
 
 const app = express()
 
-// Middleware para parsear JSON (sin requerir Content-Type)
-app.use(express.json({ 
-  type: ['application/json', 'text/plain'] 
+// CORS - Permitir peticiones desde el frontend
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true
 }));
-app.use(express.urlencoded({ extended: true }));
+
+// Middleware para parsear JSON (sin requerir Content-Type)
+app.use(express.json({
+  limit: '50mb',
+  type: ['application/json', 'text/plain']
+}));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Debug middleware para verificar headers y body
 app.use((req, res, next) => {
@@ -30,8 +38,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// app.use(auth);
-
+app.use(auth);
 app.use("/auth", authRoutes)
 app.use("/event", eventRoutes)
 app.use("/filtros", filtrosRoutes)
@@ -44,8 +51,10 @@ const PORT = process.env.PORT || 8080;
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
-  sequelize.authenticate()
-    .then(() => console.log('Database connected successfully'))
+  sequelize.sync({ alter: true })
+    .then(() => {
+      console.log('Database connected and synced successfully');
+    })
     .catch(err => console.error('Unable to connect to the database:', err));
 });
 

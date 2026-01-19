@@ -7,16 +7,28 @@ export const client = axios.create({
   baseURL: apiUrl,
 })
 
+// Promise que se resuelve cuando el usuario está autenticado
+let authReady: Promise<void> = new Promise((resolve) => {
+  const unsubscribe = auth.onAuthStateChanged(() => {
+    unsubscribe()
+    resolve()
+  })
+})
+
 // Interceptor para agregar el Authorization Bearer token
 client.interceptors.request.use(
   async (config: any) => {
+    // Esperar a que Firebase esté listo
+    await authReady
+    
     const user = auth.currentUser
     if (user) {
       try {
-        const token = await user.getIdToken(/* forceRefresh */ false)
-        if (config.headers) {
-          config.headers.Authorization = `Bearer ${token}`
+        const token = await user.getIdToken(true)
+        if (!config.headers) {
+          config.headers = {}
         }
+        config.headers.Authorization = `Bearer ${token}`
       } catch (error) {
         console.error('Error getting Firebase token:', error)
       }

@@ -16,6 +16,9 @@ import { CalendarIcon, Clock, ImageIcon, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert"
 import { Map } from "../components/map"
 import { showToast } from "../lib/toast-utils"
+import { createEvent } from "../services/eventService"
+import { auth } from "../../firebase/firebase.config"
+import { loadFromLocalStorage } from "@/lib/utils"
 
 const CrearEventoPage: React.FC = () => {
   const navigate = useNavigate()
@@ -43,7 +46,7 @@ const CrearEventoPage: React.FC = () => {
         (pos) => {
           setForm((prev) => ({ ...prev, coordinates: [pos.coords.latitude, pos.coords.longitude] }))
         },
-        () => {},
+        () => { },
         { enableHighAccuracy: true }
       )
     }
@@ -89,18 +92,60 @@ const CrearEventoPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
     // Validación
     if (!form.title || !form.description || !form.category || !form.maxParticipants || !form.location || !form.date || !form.time || !form.duration) {
-      showToast.error("Completa todos los campos obligatorios")
+      showToast.error("Error", "Completa todos los campos obligatorios")
       return
     }
+
+    const user = auth.currentUser
+    if (!user) {
+      showToast.warning("Inicia sesión", "Debes iniciar sesión para crear un evento")
+      navigate("/login")
+      return
+    }
+
+    // Obtener usuario_id del localStorage (sincronizado con backend)
+    const userData = loadFromLocalStorage("userData")
+    const usuarioId = userData?.usuario_id
+
+    if (!usuarioId) {
+      showToast.error("Error de sesión", "No se pudo identificar al usuario. Por favor, inicia sesión nuevamente.")
+      return
+    }
+
     setLoading(true)
-    // Aquí iría la lógica para guardar el evento en la base de datos
-    setTimeout(() => {
-      setLoading(false)
+
+    try {
+      // Preparar datos para el backend
+      const eventData: any = {
+        nombre_evento: form.title,
+        descripcion_evento: form.description,
+        fecha_inicio: form.date.toISOString().split('T')[0], // formato YYYY-MM-DD
+        horario: form.time,
+        duracion: parseFloat(form.duration),
+        cant_participantes: parseInt(form.maxParticipants),
+        usuario_id: usuarioId,
+        calle: form.location // Usar location como dirección completa por ahora
+      }
+
+      // Agregar restricción de edad si está activada
+      if (form.ageRestriction) {
+        eventData.restriccion_edad = parseInt(form.minAge)
+      }
+
+      // Crear el evento
+      await createEvent(eventData)
+
       showToast.success("Evento creado", "Tu evento ha sido registrado correctamente.")
       navigate("/eventos")
-    }, 1200)
+    } catch (error: any) {
+      console.error("Error creating event:", error)
+      showToast.error("Error al crear evento", error.message || "No se pudo crear el evento")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -120,7 +165,7 @@ const CrearEventoPage: React.FC = () => {
           </AlertDescription>
         </Alert>
 
-  <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit}>
           <Card className="border-indigo-100 shadow-md mb-6">
             <CardHeader>
               <CardTitle>Información básica</CardTitle>

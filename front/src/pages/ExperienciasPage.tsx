@@ -6,79 +6,62 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Camera, MapPin, Heart, MessageCircle, Share2, MoreHorizontal, Clock, Globe } from "lucide-react"
+import { Camera, MapPin, Heart, MessageCircle, Share2, MoreHorizontal, Clock, Loader2 } from "lucide-react"
+import { getFeed, createFeed, likePublication, commentPublication } from "@/services/feedService"
+import { getFilters } from "@/services/filtrosService"
+import { auth } from "../../firebase/firebase.config"
+import { showToast } from "@/lib/toast-utils"
 import { loadFromLocalStorage } from "@/lib/utils"
-
-const allFilters = ["Barcelona", "Madrid", "Valencia", "Cultura", "Gastronomía", "Aventura"]
 
 const ExperienciasPage: React.FC = () => {
   const navigate = useNavigate()
   const [newPost, setNewPost] = useState("")
-  const [filterQuery, setFilterQuery] = useState("")
-  const [selectedFilter, setSelectedFilter] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [location, setLocation] = useState("")
   const [showLocationInput, setShowLocationInput] = useState(false)
-  const [user, setUser] = useState<{ displayName: string; photoURL?: string } | null>(null)
+  const [experiences, setExperiences] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [ciudades, setCiudades] = useState<Array<{ id: number; nombre: string }>>([])
+  const [selectedCiudad, setSelectedCiudad] = useState<number | null>(null)
+  const [page, setPage] = useState(0)
 
-  // Estado para los filtros seleccionados
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([])
+  // Cargar ciudades para el filtro
+  useEffect(() => {
+    const loadCiudades = async () => {
+      try {
+        const response: any = await getFilters()
+        if (response.success && response.data) {
+          setCiudades(response.data.ciudades || [])
+        }
+      } catch (error) {
+        console.error("Error loading cities:", error)
+      }
+    }
+    loadCiudades()
+  }, [])
 
-  // Datos de ejemplo para las experiencias
-  const experiences = [
-    {
-      id: "1",
-      user: {
-        name: "María García",
-        avatar: "/placeholder.svg?height=40&width=40",
-        location: "Barcelona, España",
-      },
-      content:
-        "¡La Sagrada Familia es impresionante! Definitivamente vale la pena la visita. Recomiendo comprar las entradas con anticipación para evitar las filas.",
-      image: "/imagenes/sagradafamilia.jpeg?height=300&width=500",
-      timestamp: "Hace 2 horas",
-      likes: 24,
-      comments: 8,
-      tags: ["Cultura", "Barcelona"],
-    },
-    {
-      id: "2",
-      user: {
-        name: "Carlos Rodríguez",
-        avatar: "/placeholder.svg?height=40&width=40",
-        location: "Madrid, España",
-      },
-      content:
-        "Increíble experiencia en el Museo del Prado. Las obras de Velázquez son simplemente espectaculares. Pasé toda la mañana allí y no me di cuenta del tiempo.",
-      image: "/imagenes/prado.webp?height=300&width=500",
-      timestamp: "Hace 5 horas",
-      likes: 18,
-      comments: 12,
-      tags: ["Cultura", "Madrid"],
-    },
-    {
-      id: "3",
-      user: {
-        name: "Ana Martínez",
-        avatar: "/placeholder.svg?height=40&width=40",
-        location: "Valencia, España",
-      },
-      content:
-        "El mercado central de Valencia es un paraíso para los amantes de la gastronomía. Probé la paella más auténtica de mi vida. ¡Altamente recomendado!",
-      image: "/imagenes/mercado.jpg?height=300&width=500",
-      timestamp: "Hace 1 día",
-      likes: 42,
-      comments: 15,
-      tags: ["Gastronomía", "Valencia"],
-    },
-  ]
+  // Cargar publicaciones
+  const loadFeed = async () => {
+    setLoading(true)
+    try {
+      const filters: any = { page, size: 10 }
+      if (selectedCiudad) filters.ciudad_id = selectedCiudad
+
+      const response: any = await getFeed(filters)
+      setExperiences(response.data || [])
+    } catch (error: any) {
+      console.error("Error loading feed:", error)
+      showToast.error("Error al cargar publicaciones", error.message || "No se pudieron cargar las experiencias")
+      setExperiences([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const userData = loadFromLocalStorage("userData")
-    console.log(userData);
-    setUser(userData)
-  }, [])
+    loadFeed()
+  }, [page, selectedCiudad])
 
   // Manejar subida de imagen
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,23 +74,100 @@ const ExperienciasPage: React.FC = () => {
 
   // Manejar publicación
   const handlePublish = async () => {
-    if (newPost.trim() && user) {
-      // Preparar datos para enviar al backend
-      const formData = new FormData()
-      formData.append("content", newPost)
-      if (selectedImage) formData.append("image", selectedImage)
-      if (location) formData.append("location", location)
-      formData.append("displayName", user.displayName)
-      if (user.photoURL) formData.append("photoURL", user.photoURL)
+    const user = auth.currentUser
+    if (!user) {
+      showToast.warning("Inicia sesión", "Debes iniciar sesión para publicar")
+      navigate("/login")
+      return
+    }
 
-      // Aquí iría la lógica para enviar formData al backend (ejemplo con fetch)
-      // await fetch("/api/experiencias", { method: "POST", body: formData })
+    if (!newPost.trim()) {
+      showToast.warning("Escribe algo", "La publicación no puede estar vacía")
+      return
+    }
 
+    // Obtener usuario_id del localStorage (sincronizado con backend)
+    const userData = loadFromLocalStorage("userData")
+    const usuarioId = userData?.usuario_id
+
+    if (!usuarioId) {
+      showToast.error("Error de sesión", "No se pudo identificar al usuario. Por favor, inicia sesión nuevamente.")
+      return
+    }
+
+    try {
+      const feedData: any = {
+        usuario_id: usuarioId,
+        descripcion: newPost
+      }
+
+      if (selectedCiudad) feedData.ciudad_id = selectedCiudad
+
+      // Por ahora no manejamos imágenes, pero se puede agregar imagenesIds aquí
+      // if (selectedImage) { ... upload image first, then add to feedData.imagenes }
+
+      await createFeed(feedData)
+      showToast.success("Publicado", "Tu experiencia se publicó exitosamente")
+
+      // Limpiar formulario
       setNewPost("")
       setSelectedImage(null)
       setImagePreview(null)
       setLocation("")
       setShowLocationInput(false)
+
+      // Recargar feed
+      loadFeed()
+    } catch (error: any) {
+      console.error("Error creating post:", error)
+      showToast.error("Error al publicar", error.message || "No se pudo publicar tu experiencia")
+    }
+  }
+
+  // Manejar like
+  const handleLike = async (publicacionId: number) => {
+    try {
+      await likePublication(publicacionId)
+      // Actualizar el conteo localmente (optimistic update)
+      setExperiences(experiences.map(exp =>
+        exp.publicacion_id === publicacionId
+          ? { ...exp, likes: (exp.likes || 0) + 1, liked: !exp.liked }
+          : exp
+      ))
+    } catch (error: any) {
+      console.error("Error liking post:", error)
+      showToast.error("Error", "No se pudo dar like")
+    }
+  }
+
+  // Manejar comentario
+  const handleComment = async (publicacionId: number, mensaje: string) => {
+    const user = auth.currentUser
+    if (!user) {
+      showToast.warning("Inicia sesión", "Debes iniciar sesión para comentar")
+      navigate("/login")
+      return
+    }
+
+    // Obtener usuario_id del localStorage (sincronizado con backend)
+    const userData = loadFromLocalStorage("userData")
+    const usuarioId = userData?.usuario_id
+
+    if (!usuarioId) {
+      showToast.error("Error de sesión", "No se pudo identificar al usuario. Por favor, inicia sesión nuevamente.")
+      return
+    }
+
+    try {
+      await commentPublication(publicacionId, {
+        usuario_id: usuarioId,
+        mensaje
+      })
+      showToast.success("Comentado", "Tu comentario se agregó exitosamente")
+      loadFeed() // Recargar para mostrar el nuevo comentario
+    } catch (error: any) {
+      console.error("Error commenting:", error)
+      showToast.error("Error", "No se pudo agregar el comentario")
     }
   }
 
@@ -128,11 +188,9 @@ const ExperienciasPage: React.FC = () => {
           <CardContent className="pt-6">
             <div className="flex gap-4">
               <Avatar className="h-10 w-10">
-                <AvatarImage src={user?.photoURL || "/placeholder.svg"} alt={user?.displayName || "Tu avatar"} />
+                <AvatarImage src={auth.currentUser?.photoURL || "/placeholder.svg"} />
                 <AvatarFallback className="bg-indigo-200 text-indigo-800">
-                  {user?.displayName
-                    ? user.displayName.split(" ").map((n) => n[0]).join("")
-                    : "TU"}
+                  {auth.currentUser?.displayName?.charAt(0) || "U"}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
@@ -142,13 +200,11 @@ const ExperienciasPage: React.FC = () => {
                   onChange={(e) => setNewPost(e.target.value)}
                   className="border-0 bg-gray-50 text-base p-4 mb-4"
                 />
-                {/* Imagen subida */}
                 {imagePreview && (
                   <div className="mb-2">
                     <img src={imagePreview} alt="Preview" className="w-full h-40 object-cover rounded-lg" />
                   </div>
                 )}
-                {/* Ubicación */}
                 {showLocationInput && (
                   <Input
                     placeholder="Ubicación (ej: Barcelona, España)"
@@ -159,7 +215,6 @@ const ExperienciasPage: React.FC = () => {
                 )}
                 <div className="flex items-center justify-between">
                   <div className="flex gap-2">
-                    {/* Botón para subir foto */}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -176,7 +231,6 @@ const ExperienciasPage: React.FC = () => {
                       style={{ display: "none" }}
                       onChange={handleImageChange}
                     />
-                    {/* Botón para agregar ubicación */}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -187,7 +241,11 @@ const ExperienciasPage: React.FC = () => {
                       Ubicación
                     </Button>
                   </div>
-                  <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handlePublish} disabled={!newPost.trim()}>
+                  <Button
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                    onClick={handlePublish}
+                    disabled={!newPost.trim()}
+                  >
                     Publicar
                   </Button>
                 </div>
@@ -196,139 +254,197 @@ const ExperienciasPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Buscador de filtros */}
+        {/* Filtros por ciudad */}
         <div className="mb-8">
-          <Input
-            placeholder="Buscar filtro (ej: Madrid, Cultura...)"
-            value={filterQuery}
-            onChange={e => setFilterQuery(e.target.value)}
-            className="mb-2 max-w-xs"
-          />
-          <div className="flex flex-wrap gap-2 mb-2">
-            {/* Sugerencias de filtros según lo que escribe el usuario */}
-            {allFilters
-              .filter(
-                f =>
-                  f.toLowerCase().includes(filterQuery.toLowerCase()) &&
-                  !selectedFilters.includes(f)
-              )
-              .map(filter => (
-                <Badge
-                  key={filter}
-                  className="cursor-pointer px-4 py-2 bg-gray-100 text-gray-800 hover:bg-gray-200"
-                  onClick={() => {
-                    setSelectedFilters([...selectedFilters, filter]);
-                    setFilterQuery(""); // limpiar input al agregar
-                  }}
-                >
-                  {filter}
-                </Badge>
-              ))}
-          </div>
-          {/* Filtros seleccionados */}
           <div className="flex flex-wrap gap-2">
-            {selectedFilters.map(filter => (
+            <Badge
+              className={`cursor-pointer px-4 py-2 ${selectedCiudad === null
+                ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                }`}
+              onClick={() => setSelectedCiudad(null)}
+            >
+              Todas las ciudades
+            </Badge>
+            {ciudades.map(ciudad => (
               <Badge
-                key={filter}
-                className="px-4 py-2 bg-indigo-600 text-white flex items-center gap-1"
+                key={ciudad.id}
+                className={`cursor-pointer px-4 py-2 ${selectedCiudad === ciudad.id
+                  ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                  : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                  }`}
+                onClick={() => setSelectedCiudad(ciudad.id)}
               >
-                {filter}
-                <button
-                  type="button"
-                  className="ml-1 text-xs hover:text-red-200"
-                  onClick={() =>
-                    setSelectedFilters(selectedFilters.filter(f => f !== filter))
-                  }
-                  aria-label={`Quitar filtro ${filter}`}
-                >
-                  &#10005;
-                </button>
+                {ciudad.nombre}
               </Badge>
             ))}
           </div>
         </div>
 
         {/* Experiences Feed */}
-        <div className="space-y-6">
-          {experiences.map((experience) => (
-            <Card key={experience.id} className="border-indigo-100 shadow-md">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={experience.user.avatar || "/placeholder.svg"} alt={experience.user.name} />
-                      <AvatarFallback className="bg-indigo-200 text-indigo-800">
-                        {experience.user.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{experience.user.name}</h3>
-                      <div className="flex items-center gap-1 text-sm text-gray-500">
-                        <MapPin className="h-3 w-3" />
-                        <span>{experience.user.location}</span>
-                        <span>•</span>
-                        <Clock className="h-3 w-3" />
-                        <span>{experience.timestamp}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="icon" className="text-gray-500">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-gray-700">{experience.content}</p>
-
-                {experience.image && (
-                  <div className="rounded-lg overflow-hidden">
-                    <img
-                      src={experience.image || "/placeholder.svg"}
-                      alt="Experiencia de viaje"
-                      className="w-full h-64 object-cover"
-                    />
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-2">
-                  {experience.tags.map((tag) => (
-                    <Badge key={tag} variant="outline" className="text-indigo-700 border-indigo-200">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                  <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="sm" className="text-gray-600 hover:text-red-600">
-                      <Heart className="h-4 w-4 mr-1" />
-                      {experience.likes}
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-600 hover:text-indigo-600">
-                      <MessageCircle className="h-4 w-4 mr-1" />
-                      {experience.comments}
-                    </Button>
-                  </div>
-                  <Button variant="ghost" size="sm" className="text-gray-600 hover:text-indigo-600">
-                    <Share2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+          </div>
+        ) : experiences.length > 0 ? (
+          <div className="space-y-6">
+            {experiences.map((experience) => (
+              <ExperienceCard
+                key={experience.publicacion_id}
+                experience={experience}
+                onLike={handleLike}
+                onComment={handleComment}
+              />
+            ))}
+          </div>
+        ) : (
+          <Card className="border-indigo-100">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Heart className="h-12 w-12 text-gray-400 mb-4" />
+              <h3 className="text-xl font-medium text-gray-900 mb-2">No hay experiencias aún</h3>
+              <p className="text-gray-600 text-center">Sé el primero en compartir una experiencia</p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Load More */}
-        <div className="text-center mt-8">
-          <Button variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">
-            Cargar más experiencias
-          </Button>
-        </div>
+        {experiences.length > 0 && (
+          <div className="text-center mt-8">
+            <Button
+              variant="outline"
+              className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+              onClick={() => setPage(page + 1)}
+            >
+              Cargar más experiencias
+            </Button>
+          </div>
+        )}
       </div>
     </div>
+  )
+}
+
+function ExperienceCard({ experience, onLike, onComment }: {
+  experience: any
+  onLike: (id: number) => void
+  onComment: (id: number, mensaje: string) => void
+}) {
+  const [showCommentInput, setShowCommentInput] = useState(false)
+  const [commentText, setCommentText] = useState("")
+
+  const handleSubmitComment = () => {
+    if (commentText.trim()) {
+      onComment(experience.publicacion_id, commentText)
+      setCommentText("")
+      setShowCommentInput(false)
+    }
+  }
+
+  return (
+    <Card className="border-indigo-100 shadow-md">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={experience.usuario?.imagen_perfil || "/placeholder.svg"} />
+              <AvatarFallback className="bg-indigo-200 text-indigo-800">
+                {experience.usuario?.nombre?.charAt(0) || "U"}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h3 className="font-semibold text-gray-900">
+                {experience.usuario?.nombre} {experience.usuario?.apellido}
+              </h3>
+              <div className="flex items-center gap-1 text-sm text-gray-500">
+                {experience.ciudad && (
+                  <>
+                    <MapPin className="h-3 w-3" />
+                    <span>{experience.ciudad.nombre}</span>
+                    <span>•</span>
+                  </>
+                )}
+                <Clock className="h-3 w-3" />
+                <span>{new Date(experience.fecha_creacion).toLocaleDateString()}</span>
+              </div>
+            </div>
+          </div>
+          <Button variant="ghost" size="icon" className="text-gray-500">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-gray-700">{experience.descripcion}</p>
+
+        {experience.imagenes && experience.imagenes.length > 0 && (
+          <div className="rounded-lg overflow-hidden">
+            <img
+              src={experience.imagenes[0].url || "/placeholder.svg"}
+              alt="Experiencia de viaje"
+              className="w-full h-64 object-cover"
+            />
+          </div>
+        )}
+
+        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`text-gray-600 ${experience.liked ? 'text-red-600' : 'hover:text-red-600'}`}
+              onClick={() => onLike(experience.publicacion_id)}
+            >
+              <Heart className={`h-4 w-4 mr-1 ${experience.liked ? 'fill-current' : ''}`} />
+              {experience.cant_likes || 0}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-600 hover:text-indigo-600"
+              onClick={() => setShowCommentInput(!showCommentInput)}
+            >
+              <MessageCircle className="h-4 w-4 mr-1" />
+              {experience.comentarios?.length || 0}
+            </Button>
+          </div>
+          <Button variant="ghost" size="sm" className="text-gray-600 hover:text-indigo-600">
+            <Share2 className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Comment input */}
+        {showCommentInput && (
+          <div className="flex gap-2 pt-2">
+            <Input
+              placeholder="Escribe un comentario..."
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              className="flex-1"
+            />
+            <Button
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-700"
+              onClick={handleSubmitComment}
+              disabled={!commentText.trim()}
+            >
+              Comentar
+            </Button>
+          </div>
+        )}
+
+        {/* Comments list */}
+        {experience.comentarios && experience.comentarios.length > 0 && (
+          <div className="space-y-2 pt-2">
+            {experience.comentarios.slice(0, 3).map((comentario: any) => (
+              <div key={comentario.id} className="flex gap-2 text-sm">
+                <span className="font-semibold">{comentario.usuario?.nombre}:</span>
+                <span className="text-gray-700">{comentario.mensaje}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 

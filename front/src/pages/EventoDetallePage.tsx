@@ -1,221 +1,185 @@
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "../components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
-import { Badge } from "../components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog"
-import { MapPin, Calendar, Clock, Users, CheckCircle, MessageCircle, Share2, AlertCircle } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert"
+import { Badge } from "../components/ui/badge"
+import { MapPin, Calendar, Clock, Users, CheckCircle, Loader2 } from "lucide-react"
 import { Map } from "../components/map"
-
-
-import { useEffect } from "react"
 import { showToast } from "../lib/toast-utils"
+import { getEventById, registerUserToEvent } from "../services/eventService"
+import { auth } from "../../firebase/firebase.config"
+import { loadFromLocalStorage } from "@/lib/utils"
 
-const EventoDetalleModal: React.FC<{ event: any; open: boolean; onClose: () => void; autoJoin?: boolean }> = ({ event, open, onClose, autoJoin }) => {
-  const navigate = useNavigate()
-  const [isVerified, setIsVerified] = useState(false)
-  const [showVerificationAlert, setShowVerificationAlert] = useState(false)
-  const [joinStatus, setJoinStatus] = useState<"success" | "error" | null>(null)
-  const [isJoined, setIsJoined] = useState(false)
-  const [showParticipants, setShowParticipants] = useState(false)
+// const EventoDetalleModal: React.FC<{ event: any; open: boolean; onClose: () => void; autoJoin?: boolean }> = ({ event: initialEvent, open, onClose, autoJoin }) => {
+//   const navigate = useNavigate()
+//   const [event, setEvent] = useState(initialEvent)
+//   const [loading, setLoading] = useState(false)
+//   const [isJoined, setIsJoined] = useState(false)
 
-  const handleJoinEvent = () => {
-    // Simulación de verificación de requisitos
-    if (event.ageRestriction && !isVerified) {
-      showToast.warning(
-        "Verificación requerida",
-        `Este evento tiene restricción de edad (+${event.minAge}). Debes verificar tu identidad para poder unirte.`
-      )
-      navigate("/verificar-identidad")
-    } else {
-      showToast.success(
-        "¡Te has unido al evento!",
-        "Tu inscripción fue exitosa."
-      )
-      setIsJoined(true)
-    }
-  }
+//   // Cargar detalles completos del evento
+//   useEffect(() => {
+//     const loadEventDetails = async () => {
+//       if (!open || !event?.id) return
 
-  useEffect(() => {
-    if (open && autoJoin) {
-      handleJoinEvent()
-    }
-    // eslint-disable-next-line
-  }, [open, autoJoin])
+//       setLoading(true)
+//       try {
+//         const response: any = await getEventById(event.id)
+//         if (response.success && response.data) {
+//           setEvent(response.data)
+//         }
+//       } catch (error) {
+//         console.error("Error loading event details:", error)
+//       } finally {
+//         setLoading(false)
+//       }
+//     }
 
-  const handleVerifyIdentity = () => {
-    navigate("/verificar-identidad")
-    onClose()
-  }
+//     loadEventDetails()
+//   }, [open, event?.id])
 
-  const handleClose = () => {
-    setShowVerificationAlert(false)
-    setJoinStatus(null)
-    setShowParticipants(false)
-    onClose()
-  }
+//   const handleJoinEvent = async () => {
+//     const user = auth.currentUser
+//     if (!user) {
+//       showToast.warning("Inicia sesión", "Debes iniciar sesión para unirte")
+//       navigate("/login")
+//       return
+//     }
 
-  return (
-    <Dialog open={open} onOpenChange={v => !v && handleClose()}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{event.title}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 mt-2">
-          <div className="rounded-md overflow-hidden">
-            <img src={event.image || "/placeholder.svg"} alt={event.title} className="w-full h-48 object-cover" />
-          </div>
-          <div className="flex gap-2">
-            <Badge className={`${event.isOfficial ? "bg-indigo-600" : "bg-orange-500"}`}>
-              {event.isOfficial ? (
-                <span className="flex items-center gap-1">
-                  <CheckCircle className="h-3 w-3" />
-                  Oficial
-                </span>
-              ) : (
-                "Usuario"
-              )}
-            </Badge>
-            <Badge className="bg-gray-100 text-gray-800">{event.category}</Badge>
-            {event.ageRestriction && <Badge className="bg-amber-500">+{event.minAge}</Badge>}
-          </div>
+//     // Obtener usuario_id del localStorage (sincronizado con backend)
+//     const userData = loadFromLocalStorage("userData")
+//     const usuarioId = userData?.usuario_id
 
-          {/* El feedback ahora se da solo por toast, no por alertas internas */}
+//     if (!usuarioId) {
+//       showToast.error("Error de sesión", "No se pudo identificar al usuario. Por favor, inicia sesión nuevamente.")
+//       return
+//     }
 
-          <p className="text-gray-700">{event.description}</p>
+//     try {
+//       // Verificar restricción de edad
+//       if (event.restriccion_edad || event.ageRestriction) {
+//         const verificationStatus: any = await obtenerEstadoVerificacion(usuarioId)
+//         if (!verificationStatus.success || verificationStatus.data?.estado !== 'aprobado') {
+//           showToast.warning(
+//             "Verificación requerida",
+//             "Este evento requiere verificación de identidad"
+//           )
+//           navigate("/verificar-identidad")
+//           return
+//         }
+//       }
 
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center gap-2 text-gray-700">
-              <MapPin className="h-4 w-4 text-indigo-600" />
-              <span>{event.location}</span>
-            </div>
-            <div className="flex items-center gap-2 text-gray-700">
-              <Calendar className="h-4 w-4 text-indigo-600" />
-              <span>{event.date}</span>
-            </div>
-            <div className="flex items-center gap-2 text-gray-700">
-              <Clock className="h-4 w-4 text-indigo-600" />
-              <span>{event.time}</span>
-            </div>
-            <div className="flex items-center gap-2 text-gray-700">
-              <Users className="h-4 w-4 text-indigo-600" />
-              <span>
-                {event.participants}/{event.maxParticipants} participantes
-              </span>
-            </div>
-          </div>
+//       // Registrar al usuario
+//       await registerUserToEvent(event.id, usuarioId)
+//       showToast.success("¡Te has unido al evento!", "Tu inscripción fue exitosa")
+//       setIsJoined(true)
 
-          <div className="pt-2">
-            <Map
-              center={event.coordinates || [41.3851, 2.1734]}
-              zoom={16}
-              height="200px"
-              address={event.location}
-              title={event.title}
-              showGoogleMapsButton={true}
-            />
-          </div>
+//       // Recargar detalles del evento
+//       const response: any = await getEventById(event.id)
+//       if (response.success && response.data) {
+//         setEvent(response.data)
+//       }
+//     } catch (error: any) {
+//       console.error("Error joining event:", error)
+//       showToast.error("Error", error.message || "No se pudo completar la inscripción")
+//     }
+//   }
 
-          <div className="pt-2">
-            <Card className="border-indigo-100 shadow-md">
-              <CardHeader>
-                <CardTitle>Anfitrión</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={event.host?.avatar || "/placeholder.svg"} alt={event.host?.name} />
-                    <AvatarFallback className="bg-indigo-200 text-indigo-800">
-                      {event.host?.name?.split(" ").map((n: string) => n[0]).join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-gray-900">{event.host?.name}</h3>
-                      {event.host?.verified && (
-                        <Badge className="bg-green-100 text-green-800 text-xs">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Verificado
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-gray-600 text-sm">Anfitrión del evento</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+//   useEffect(() => {
+//     if (open && autoJoin) {
+//       handleJoinEvent()
+//     }
+//   }, [open, autoJoin])
 
-          <div className="pt-2">
-            <Card className="border-indigo-100 shadow-md">
-              <CardHeader>
-                <CardTitle>Participantes ({event.participants})</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {(event.attendees || []).slice(0, 6).map((attendee: any, index: number) => (
-                    <Avatar key={index} className="h-8 w-8 border-2 border-white">
-                      <AvatarImage src={attendee.avatar || "/placeholder.svg"} alt={attendee.name} />
-                      <AvatarFallback className="bg-indigo-200 text-indigo-800 text-xs">
-                        {attendee.name.split(" ").map((n: string) => n[0]).join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                  ))}
-                  {event.participants > 6 && (
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 border-2 border-white text-xs font-medium">
-                      +{event.participants - 6}
-                    </div>
-                  )}
-                </div>
-                <Button variant="outline" className="w-full text-sm bg-transparent" onClick={() => setShowParticipants(true)}>
-                  Ver todos los participantes
-                </Button>
-                {showParticipants && (
-                  <Dialog open={showParticipants} onOpenChange={v => !v && setShowParticipants(false)}>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Participantes</DialogTitle>
-                      </DialogHeader>
-                      <div className="grid grid-cols-1 gap-3 max-h-[300px] overflow-y-auto">
-                        {(event.attendees || []).map((attendee: any, index: number) => (
-                          <div key={index} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">
-                            <Avatar>
-                              <AvatarImage src={attendee.avatar || "/placeholder.svg"} alt={attendee.name} />
-                              <AvatarFallback className="bg-indigo-200 text-indigo-800">
-                                {attendee.name.split(" ").map((n: string) => n[0]).join("")}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="font-medium">{attendee.name}</div>
-                              <div className="text-sm text-gray-500">Participante</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+//   const handleClose = () => {
+//     onClose()
+//   }
 
-          <div className="flex gap-3 pt-4">
-            <Button variant="outline" className="flex-1 bg-transparent" onClick={handleClose}>
-              Volver
-            </Button>
-            {!autoJoin && (
-              <Button className="flex-1 bg-indigo-600 hover:bg-indigo-700" onClick={handleJoinEvent}>
-                Unirse al evento
-              </Button>
-            )}
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
+//   if (loading) {
+//     return (
+//       <Dialog open={open} onOpenChange={v => !v && handleClose()}>
+//         <DialogContent className="sm:max-w-[700px]">
+//           <div className="flex items-center justify-center py-12">
+//             <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+//           </div>
+//         </DialogContent>
+//       </Dialog>
+//     )
+//   }
 
-export default EventoDetalleModal
+//   return (
+//     <Dialog open={open} onOpenChange={v => !v && handleClose()}>
+//       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+//         <DialogHeader>
+//           <DialogTitle>{event.nombre_evento || event.title}</DialogTitle>
+//         </DialogHeader>
+//         <div className="space-y-4 mt-2">
+//           <div className="rounded-md overflow-hidden">
+//             <img src={event.imagen || event.image || "/placeholder.svg"} alt={event.nombre_evento || event.title} className="w-full h-48 object-cover" />
+//           </div>
+//           <div className="flex gap-2">
+//             <Badge className={`${event.isOfficial ? "bg-indigo-600" : "bg-orange-500"}`}>
+//               {event.isOfficial ? (
+//                 <span className="flex items-center gap-1">
+//                   <CheckCircle className="h-3 w-3" />
+//                   Oficial
+//                 </span>
+//               ) : (
+//                 "Usuario"
+//               )}
+//             </Badge>
+//             <Badge className="bg-gray-100 text-gray-800">{event.categoria || event.category}</Badge>
+//             {(event.restriccion_edad || event.ageRestriction) && <Badge className="bg-amber-500">+{event.restriccion_edad || event.minAge || 18}</Badge>}
+//           </div>
+
+//           <p className="text-gray-700">{event.descripcion_evento || event.description}</p>
+
+//           <div className="space-y-3 text-sm">
+//             <div className="flex items-center gap-2 text-gray-700">
+//               <MapPin className="h-4 w-4 text-indigo-600" />
+//               <span>{event.direccion?.calle || event.calle || event.location}</span>
+//             </div>
+//             <div className="flex items-center gap-2 text-gray-700">
+//               <Calendar className="h-4 w-4 text-indigo-600" />
+//               <span>{new Date(event.fecha_inicio || event.date).toLocaleDateString()}</span>
+//             </div>
+//             <div className="flex items-center gap-2 text-gray-700">
+//               <Clock className="h-4 w-4 text-indigo-600" />
+//               <span>{event.horario || event.time}</span>
+//             </div>
+//             <div className="flex items-center gap-2 text-gray-700">
+//               <Users className="h-4 w-4 text-indigo-600" />
+//               <span>
+//                 {event.participantes_actuales || event.participants || 0}/{event.cant_participantes || event.maxParticipants} participantes
+//               </span>
+//             </div>
+//           </div>
+
+//           <div className="pt-2">
+//             <Map
+//               center={event.coordinates || [41.3851, 2.1734]}
+//               zoom={16}
+//               height="200px"
+//               address={event.direccion?.calle || event.location}
+//               title={event.nombre_evento || event.title}
+//               showGoogleMapsButton={true}
+//             />
+//           </div>
+
+//           <div className="flex gap-3 pt-4">
+//             <Button variant="outline" className="flex-1 bg-transparent" onClick={handleClose}>
+//               Volver
+//             </Button>
+//             {!autoJoin && !isJoined && (
+//               <Button className="flex-1 bg-indigo-600 hover:bg-indigo-700" onClick={handleJoinEvent}>
+//                 Unirse al evento
+//               </Button>
+//             )}
+//           </div>
+//         </div>
+//       </DialogContent>
+//     </Dialog>
+//   )
+// }
+
+// export default EventoDetalleModal

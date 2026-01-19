@@ -8,6 +8,7 @@ import {
   ForeignKey,
   AllowNull,
   Default,
+  BelongsTo,
 } from "sequelize-typescript"
 import Event from "./Event"
 import { User } from "./User"
@@ -36,6 +37,9 @@ export class InscripcionEvent extends Model<InscripcionEvent> {
   @AllowNull(false)
   @Column(DataType.DATE)
   fecha_creacion!: Date
+
+  @BelongsTo(() => Event)
+  evento?: Event
 }
 
 export default InscripcionEvent

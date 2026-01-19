@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Globe, Mail, Lock } from "lucide-react"
 import { Checkbox } from "../components/ui/checkbox"
 import { register as registerUser, logInwithGoogle } from "@/services/auth"
+import { syncUserBackend } from "@/services/authService"
+import { saveToLocalStorage } from "@/lib/utils"
 import { showToast } from "../lib/toast-utils"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -67,8 +69,29 @@ const RegistroPage: React.FC = () => {
       })
       setLoading(false)
       if (result?.token) {
-        showToast.success("Registro exitoso", "¡Bienvenido!")
-        navigate("/experiencias")
+        try {
+          // Sincronizar con backend
+          const backendUser = await syncUserBackend({
+            email: result.email,
+            uid: result.uid,
+            nombre: result.displayName?.split(' ')[0] || 'Usuario',
+            apellido: result.displayName?.split(' ').slice(1).join(' ') || '',
+            imagen_perfil: result.photoURL
+          })
+
+          // Guardar datos combinados
+          const userData = {
+            ...result,
+            ...backendUser.user
+          }
+
+          saveToLocalStorage("userData", userData)
+          showToast.success("Registro exitoso", "¡Bienvenido!")
+          navigate("/experiencias")
+        } catch (error) {
+          console.error("Error syncing user:", error)
+          showToast.error("Error de sincronización", "No se pudo conectar con el servidor")
+        }
       } else if (result?.code === "auth/email-already-in-use") {
         setError("email", { type: "manual", message: "Este correo ya está registrado" })
       } else {
@@ -86,8 +109,29 @@ const RegistroPage: React.FC = () => {
       const result = await logInwithGoogle()
       setLoading(false)
       if (result?.token) {
-        showToast.success("Registro con Google exitoso", "¡Bienvenido!")
-        navigate("/experiencias")
+        try {
+          // Sincronizar con backend
+          const backendUser = await syncUserBackend({
+            email: result.email,
+            uid: result.uid,
+            nombre: result.displayName?.split(' ')[0] || 'Usuario',
+            apellido: result.displayName?.split(' ').slice(1).join(' ') || '',
+            imagen_perfil: result.photoURL
+          })
+
+          // Guardar datos combinados
+          const userData = {
+            ...result,
+            ...backendUser.user
+          }
+
+          saveToLocalStorage("userData", userData)
+          showToast.success("Registro con Google exitoso", "¡Bienvenido!")
+          navigate("/experiencias")
+        } catch (error) {
+          console.error("Error syncing user:", error)
+          showToast.error("Error de sincronización", "No se pudo conectar con el servidor")
+        }
       } else {
         showToast.error("Ha ocurrido un error. Por favor, inténtelo más tarde")
       }
@@ -176,9 +220,8 @@ const RegistroPage: React.FC = () => {
                     />
                     <label
                       htmlFor="terms"
-                      className={`text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${
-                        errors.acceptTerms ? "text-red-600" : "text-gray-600"
-                      }`}
+                      className={`text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${errors.acceptTerms ? "text-red-600" : "text-gray-600"
+                        }`}
                     >
                       Acepto los{" "}
                       <Link to="/terminos" className="text-indigo-600 hover:underline">

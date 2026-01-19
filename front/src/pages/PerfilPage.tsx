@@ -22,9 +22,17 @@ import {
   Shield,
 } from "lucide-react"
 
+import { getUserItineraries, deleteItineraryFromProfile } from "../services/itinerarioService"
+import { getUserEvents } from "../services/eventService"
+import { auth } from "../../firebase/firebase.config"
+import { showToast } from "../lib/toast-utils"
+import { loadFromLocalStorage } from "../lib/utils"
+import { Loader2 } from "lucide-react"
+
 const PerfilPage: React.FC = () => {
   const navigate = useNavigate()
   const [isVerified, setIsVerified] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [userData, setUserData] = useState({
     name: "Agostina Heinzmann",
     email: "agos.heinzmann@gmail.com",
@@ -36,78 +44,99 @@ const PerfilPage: React.FC = () => {
   const [editProfileOpen, setEditProfileOpen] = useState(false)
   const [editName, setEditName] = useState(userData.name)
   const [editPhoto, setEditPhoto] = useState(userData.photoURL || userData.avatar)
-  useEffect(() => {
-    // Detectar datos de usuario desde localStorage (o backend)
-    const userLocal = localStorage.getItem("userData")
-    if (userLocal) {
-      try {
-        const parsed = JSON.parse(userLocal)
-        setUserData((prev) => ({ ...prev, ...parsed }))
-        setEditName(parsed.name || parsed.displayName || userData.name)
-        setEditPhoto(parsed.photoURL || parsed.avatar || userData.avatar)
-      } catch {}
-    }
-  }, [])
-
-  // Preparado para datos desde la base de datos
-  const [itineraries, setItineraries] = useState([
-    {
-      id: 1,
-      destination: "Barcelona, España",
-      days: 5,
-      date: "15-20 Mayo, 2023",
-      image: "/imagenes/barcelona.webp?height=200&width=300",
-    },
-    {
-      id: 2,
-      destination: "Roma, Italia",
-      days: 4,
-      date: "10-14 Junio, 2023",
-      image: "/imagenes/roma.jpg?height=200&width=300",
-    },
-  ])
-  const [events, setEvents] = useState([
-    {
-      id: 1,
-      title: "Tour gastronómico por Barcelona",
-      location: "Barcelona, España",
-      date: "15 de mayo, 2023",
-      time: "18:00 - 21:00",
-      image: "/imagenes/barcelonarestos.jpg?height=200&width=300",
-    },
-    {
-      id: 2,
-      title: "Visita guiada a la Sagrada Familia",
-      location: "Barcelona, España",
-      date: "17 de mayo, 2023",
-      time: "10:00 - 12:00",
-      image: "/imagenes/sagradafamilia.jpeg?height=200&width=300",
-    },
-  ])
+  const [itineraries, setItineraries] = useState<any[]>([])
+  const [events, setEvents] = useState<any[]>([])
   const [showItineraryModal, setShowItineraryModal] = useState<{ open: boolean; itinerary: any | null }>({ open: false, itinerary: null })
   const [showEventModal, setShowEventModal] = useState<{ open: boolean; event: any | null }>({ open: false, event: null })
 
+  // Cargar datos del perfil
+  useEffect(() => {
+    const loadProfileData = async () => {
+      const user = auth.currentUser
+      if (!user) {
+        navigate("/login")
+        return
+      }
+
+      setLoading(true)
+
+      try {
+        // Cargar datos de usuario desde localStorage
+        const userLocal = loadFromLocalStorage("userData")
+        let userId = null;
+
+        if (userLocal) {
+          setUserData((prev) => ({ ...prev, ...userLocal }))
+          setEditName(userLocal.name || userLocal.displayName || userData.name)
+          setEditPhoto(userLocal.photoURL || userLocal.avatar || userData.avatar)
+          userId = userLocal.usuario_id;
+        }
+
+        if (!userId) {
+          console.error("User ID not found in local storage");
+          return;
+        }
+
+        // Cargar itinerarios guardados
+        try {
+          const itinerariesResponse: any = await getUserItineraries(userId)
+          setItineraries(itinerariesResponse.data || [])
+        } catch (error: any) {
+          console.error("Error loading itineraries:", error)
+        }
+
+        // Cargar eventos del usuario (eventos donde está registrado)
+        try {
+          const eventsResponse: any = await getUserEvents(userId)
+          setEvents(eventsResponse.data || [])
+        } catch (error: any) {
+          console.error("Error loading events:", error)
+        }
+      } catch (error) {
+        console.error("Error loading profile:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadProfileData()
+  }, [])
+
   const handleVerifyIdentity = () => {
-  const handleEditProfile = () => {
-    setEditProfileOpen(true)
-  }
-  const handleSaveProfile = () => {
-    setUserData((prev) => ({ ...prev, name: editName, photoURL: editPhoto }))
-    setEditProfileOpen(false)
-    // Aquí iría la lógica para guardar en backend
-  }
     navigate("/verificar-identidad")
   }
 
-  function handleEditProfile(event: React.MouseEvent<HTMLButtonElement, MouseEvent>): void {
-    event.preventDefault()
+  const handleEditProfile = () => {
     setEditProfileOpen(true)
   }
 
-  function handleSaveProfile(): void {
+  const handleSaveProfile = () => {
     setUserData((prev) => ({ ...prev, name: editName, photoURL: editPhoto }))
     setEditProfileOpen(false)
-    // Aquí iría la lógica para guardar en backend
+    // TODO: Guardar en backend
+  }
+
+  const handleDeleteItinerary = async (itinerarioId: number) => {
+    const user = auth.currentUser
+    if (!user) return
+
+    try {
+      const userLocal = loadFromLocalStorage("userData")
+      if (!userLocal || !userLocal.usuario_id) return
+
+      await deleteItineraryFromProfile(userLocal.usuario_id, itinerarioId)
+      setItineraries(itineraries.filter(it => it.id !== itinerarioId))
+      showToast.success("Itinerario eliminado", "El itinerario se eliminó de tu perfil")
+    } catch (error: any) {
+      console.error("Error deleting itinerary:", error)
+      showToast.error("Error", error.message || "No se pudo eliminar el itinerario")
+    }
+  }
+
+
+  const handleLogout = () => {
+    localStorage.removeItem("userData")
+    navigate("/login")
   }
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white py-12 px-4">
@@ -221,7 +250,7 @@ const PerfilPage: React.FC = () => {
                     <Edit className="h-4 w-4 mr-2" />
                     Editar perfil
                   </Button>
-                  <Button variant="outline" className="w-full justify-start text-gray-700">
+                  <Button variant="outline" className="w-full justify-start text-gray-700" onClick={handleLogout}>
                     <LogOut className="h-4 w-4 mr-2" />
                     Cerrar sesión
                   </Button>
@@ -278,7 +307,11 @@ const PerfilPage: React.FC = () => {
                                 <Eye className="h-4 w-4 mr-2" />
                                 Ver
                               </Button>
-                              <Button variant="outline" className="flex-1 border-red-200 text-red-700 hover:bg-red-50">
+                              <Button
+                                variant="outline"
+                                className="flex-1 border-red-200 text-red-700 hover:bg-red-50"
+                                onClick={() => handleDeleteItinerary(itinerary.id)}
+                              >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Eliminar
                               </Button>

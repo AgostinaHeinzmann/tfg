@@ -31,8 +31,8 @@ export const fileToBase64 = (file: File): Promise<string> => {
 
 export const getVerificacion = async () => {
   try{ 
-    const response = await client.get<boolean>('/verificacion/obtenerVerificacion');
-    return response.data;
+    const response = await client.get<{ verificacion: boolean }>('/verificacion/obtenerVerificacion');
+    return response.data.verificacion;
   }
   catch (error) {
     throw error;

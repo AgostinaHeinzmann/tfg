@@ -1,5 +1,5 @@
 import type React from "react";
-import { act, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -30,13 +30,20 @@ import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
 import { toast } from "sonner";
 import {
   BarcodeScanner,
-  EnumScanMode,
   type BarcodeScannerConfig,
 } from "dynamsoft-barcode-reader-bundle";
+import { MRZScanner, EnumMRZData } from "dynamsoft-mrz-scanner";
 import { updateBirthDate, getVerificacion } from "../services/verificacionService";
+
+interface MRZDate {
+  day: number;
+  month: number;
+  year: number;
+}
 
 const VerificarIdentidadPage: React.FC = () => {
   const barcodeScannerViewRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showScanner, setShowScanner] = useState(false);
   const barcodeScannerRef = useRef<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -64,14 +71,11 @@ const VerificarIdentidadPage: React.FC = () => {
     (async () => {
       try {
         const result = await barcodeScanner.launch();
-        
 
-        // Si se detecta un código de barras en el launch
         if (result?.barcodeResults?.length > 0) {
           handleBarcodeDetected(result.barcodeResults[0].text);
         }
       } catch (error) {
-        console.error("Error launching barcode scanner:", error);
         toast.error("Error al iniciar el scanner. Verifica tu licencia.");
         setShowScanner(false);
       }
@@ -81,7 +85,7 @@ const VerificarIdentidadPage: React.FC = () => {
       try {
         barcodeScannerRef.current?.dispose?.();
       } catch (e) {
-        console.error("Error disposing scanner:", e);
+        // Silent cleanup
       }
     };
   }, [showScanner]);
@@ -103,11 +107,64 @@ const VerificarIdentidadPage: React.FC = () => {
       setShowSuccessModal(true);
       setVerification(true);
     } catch (error: any) {
-      console.error("Error actualizando fecha de nacimiento:", error);
       setErrorMessage(error?.response?.data?.error || "Error al verificar identidad. Intenta nuevamente.");
       setShowErrorModal(true);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessing(true);
+    try {
+      const mrzScanner = new MRZScanner({
+        license: import.meta.env.VITE_DYNAMSOFT_LICENSE_MRZ,
+        engineResourcePaths: {
+          rootDirectory: "https://cdn.jsdelivr.net/npm/",
+        },
+        showResultView: false,
+      });
+
+      const result = await mrzScanner.launch(file);
+
+      if (result?.data) {
+        const dateOfBirth = result.data[EnumMRZData.DateOfBirth] as MRZDate;
+        
+        if (dateOfBirth && dateOfBirth.year && dateOfBirth.month && dateOfBirth.day) {
+          const formattedDate = `${dateOfBirth.year}-${String(dateOfBirth.month).padStart(2, '0')}-${String(dateOfBirth.day).padStart(2, '0')}`;
+          
+          await updateBirthDate(formattedDate);
+          setShowSuccessModal(true);
+          setVerification(true);
+        } else {
+          setErrorMessage(
+            "No se pudo extraer la fecha de nacimiento del MRZ. Asegúrate de que la imagen sea del dorso del DNI."
+          );
+          setShowErrorModal(true);
+        }
+      } else {
+        setErrorMessage(
+          "No se detectó la zona MRZ en la imagen. Asegúrate de que sea una foto clara del dorso del DNI."
+        );
+        setShowErrorModal(true);
+      }
+
+      mrzScanner.dispose();
+    } catch (error: any) {
+      setErrorMessage(
+        error?.message ||
+        "Error al procesar la imagen. Intenta con otra foto más clara del dorso del DNI."
+      );
+      setShowErrorModal(true);
+    } finally {
+      setIsProcessing(false);
+      // Limpiar el input para permitir subir el mismo archivo nuevamente
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -117,7 +174,6 @@ const VerificarIdentidadPage: React.FC = () => {
         const verificacion = await getVerificacion();
         setVerification(verificacion);
       } catch (error) {
-        console.error("Error fetching verification:", error);
         setVerification(false);
       }
     })();
@@ -158,10 +214,11 @@ const VerificarIdentidadPage: React.FC = () => {
           <Info className="h-4 w-4" />
           <AlertTitle>⚠️ Consejos para mejores resultados</AlertTitle>
           <AlertDescription>
-            Asegúrate de que la <strong>luz sea clara</strong>, coloca el DNI{" "}
-            <strong>centrado</strong> en la cámara y apunta al{" "}
-            <strong>frente (parte delantera)</strong> donde están tus datos
-            personales.
+            <strong>Escaneo con cámara:</strong> Apunta al{" "}
+            <strong>frente del DNI</strong> donde está el código de barras.
+            <br />
+            <strong>Subir imagen:</strong> Sube una foto del{" "}
+            <strong>dorso del DNI</strong> donde está la zona MRZ (las líneas de texto codificado en la parte inferior).
           </AlertDescription>
         </Alert>
 
@@ -199,7 +256,10 @@ const VerificarIdentidadPage: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="border rounded-lg p-6 flex flex-col items-center cursor-pointer hover:bg-indigo-50 transition-colors">
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border rounded-lg p-6 flex flex-col items-center cursor-pointer hover:bg-indigo-50 transition-colors"
+                >
                   <div className="bg-indigo-100 p-3 rounded-full mb-3">
                     <Upload className="h-6 w-6 text-indigo-600" />
                   </div>
@@ -208,8 +268,15 @@ const VerificarIdentidadPage: React.FC = () => {
                   </h3>
                   <p className="text-gray-600 text-center text-sm">
                     Sube una foto clara del{" "}
-                    <strong>frente (parte delantera)</strong> de tu DNI
+                    <strong>dorso del DNI</strong> donde está la zona MRZ
                   </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
                 </div>
               </>
             )}

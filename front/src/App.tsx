@@ -19,13 +19,11 @@ import Navbar from "./components/layout/Navbar"
 import Footer from "./components/layout/Footer"
 import ChatGeneralEventoPage from "./pages/ChatGeneralEventoPage"
 
-function App() {
+function AppContent() {
   return (
-    <ThemeProvider defaultTheme="light" storageKey="travel-social-theme">
-      <Router>
-        <div className="App">
-          <Navbar isLoggedIn={false}/> 
-          <Routes>
+    <div className="App">
+      <Navbar />
+      <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/registro" element={<RegistroPage />} />
@@ -40,10 +38,18 @@ function App() {
             <Route path="/buscar-itinerario" element={<BuscarItinerarioPage />} />
             <Route path="/chat" element={<ChatGeneralEventoPage />} />
 
-          </Routes>
-          <Toaster />
-          <Footer />
-        </div>
+      </Routes>
+      <Toaster />
+      <Footer />
+    </div>
+  )
+}
+
+function App() {
+  return (
+    <ThemeProvider defaultTheme="light" storageKey="travel-social-theme">
+      <Router>
+        <AppContent />
       </Router>
     </ThemeProvider>
   )

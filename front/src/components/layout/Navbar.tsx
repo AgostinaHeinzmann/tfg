@@ -13,30 +13,24 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import {
-  Globe,
   User,
   Map,
   Calendar,
   Heart,
   MessageCircle,
-  Settings,
   LogOut,
-  Bell,
-  Search,
   Menu,
   X,
+  LogIn,
+  UserPlus,
 } from "lucide-react";
 import { auth } from "../../../firebase/firebase.config";
 
-interface NavbarProps {
-  isLoggedIn: boolean; // Puedes usar esto si decides manejar el estado de autenticación desde props
-}
-
-const Navbar: React.FC<NavbarProps> = ({ isLoggedIn }) => {
+const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [notifications] = useState(3); // Simulamos notificaciones
+  const [notifications] = useState(3);
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -45,6 +39,9 @@ const Navbar: React.FC<NavbarProps> = ({ isLoggedIn }) => {
     });
     return () => unsubscribe();
   }, []);
+
+  // Detectar tipo de página
+  const isAuthPage = location.pathname === "/login" || location.pathname === "/registro";
 
   const navItems = [
     {
@@ -84,20 +81,28 @@ const Navbar: React.FC<NavbarProps> = ({ isLoggedIn }) => {
     navigate("/login");
   };
 
+  // Estilos del navbar - mismo color que el footer
+  const navStyles = "bg-indigo-900 sticky top-0 z-50"; 
+
   return (
-    <nav className="bg-white border-b border-indigo-100 sticky top-0 z-50 shadow-sm">
+    <nav className={navStyles}>
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <Globe className="h-8 w-8 text-indigo-600" />
-            <span className="text-xl font-bold text-indigo-900">
+          <Link to="/" className="flex items-center space-x-3 group">
+            <img 
+              src="/imagenes/logowindow.png" 
+              alt="Logo" 
+              className="h-12 w-12 transition-transform group-hover:scale-105" 
+            />
+            <span className="text-2xl md:text-3xl font-bold text-white font-brand">
               TravelSocial
             </span>
           </Link>
 
-          {/* Desktop Navigation - solo si hay usuario */}
-          {user && (
+          {/* Desktop Navigation */}
+          {user ? (
+            // Usuario logueado - navegación completa
             <div className="hidden md:flex items-center space-x-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -105,11 +110,11 @@ const Navbar: React.FC<NavbarProps> = ({ isLoggedIn }) => {
                 return (
                   <Link key={item.name} to={item.path}>
                     <Button
-                      variant={isActive ? "default" : "ghost"}
-                      className={`flex items-center space-x-2 ${
+                      variant="ghost"
+                      className={`flex items-center space-x-2 text-white transition-colors ${
                         isActive
-                          ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-                          : "text-gray-700 hover:text-indigo-600 hover:bg-indigo-50"
+                          ? "bg-white/25"
+                          : "hover:bg-white/20 active:bg-white/30"
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -128,14 +133,14 @@ const Navbar: React.FC<NavbarProps> = ({ isLoggedIn }) => {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="flex items-center space-x-2 hover:bg-indigo-50"
+                    className="flex items-center space-x-2 text-white hover:bg-white/20 active:bg-white/30 ml-2"
                   >
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="h-8 w-8 ring-2 ring-white/30">
                       <AvatarImage
                         src={user.photoURL || "/placeholder.svg"}
                         alt={user.displayName || "Usuario"}
                       />
-                      <AvatarFallback className="bg-indigo-200 text-indigo-800">
+                      <AvatarFallback className="bg-white/20 text-white">
                         {user.displayName
                           ? user.displayName
                               .split(" ")
@@ -144,7 +149,7 @@ const Navbar: React.FC<NavbarProps> = ({ isLoggedIn }) => {
                           : "U"}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium">
                       {user.displayName
                         ? user.displayName.split(" ")[0]
                         : "Usuario"}
@@ -158,10 +163,6 @@ const Navbar: React.FC<NavbarProps> = ({ isLoggedIn }) => {
                     <User className="mr-2 h-4 w-4" />
                     <span>Mi perfil</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/configuracion")}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Configuración</span>
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleLogout}
@@ -173,16 +174,38 @@ const Navbar: React.FC<NavbarProps> = ({ isLoggedIn }) => {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+          ) : isAuthPage ? (
+            // Página de login/registro - no mostrar botones, solo el logo
+            null
+          ) : (
+            // Usuario no logueado en homepage - botones de auth
+            <div className="flex items-center space-x-3">
+              <Button 
+                variant="ghost" 
+                className="hidden sm:flex text-white hover:bg-white/10"
+                onClick={() => navigate("/login")}
+              >
+                <LogIn className="mr-2 h-4 w-4" />
+                Iniciar sesión
+              </Button>
+              <Button 
+                className="bg-white text-indigo-900 hover:bg-indigo-100 font-semibold"
+                onClick={() => navigate("/registro")}
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                Registrarse
+              </Button>
+            </div>
           )}
 
-          {/* Mobile menu button - solo si hay usuario */}
-          {user && (
+          {/* Mobile menu button - solo si hay usuario logueado */}
+          {user && !isAuthPage && (
             <div className="md:hidden flex items-center space-x-2">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="text-gray-600"
+                className="text-white hover:bg-white/10"
               >
                 {isMobileMenuOpen ? (
                   <X className="h-6 w-6" />
@@ -196,7 +219,7 @@ const Navbar: React.FC<NavbarProps> = ({ isLoggedIn }) => {
 
         {/* Mobile Navigation - solo si hay usuario */}
         {user && isMobileMenuOpen && (
-          <div className="md:hidden border-t border-indigo-100 py-4">
+          <div className="md:hidden py-4 border-t border-white/20">
             <div className="space-y-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -206,16 +229,16 @@ const Navbar: React.FC<NavbarProps> = ({ isLoggedIn }) => {
                     key={item.name}
                     to={item.path}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-white ${
                       isActive
-                        ? "bg-indigo-600 text-white"
-                        : "text-gray-700 hover:bg-indigo-50 hover:text-indigo-600"
+                        ? "bg-white/20"
+                        : "hover:bg-white/10"
                     }`}
                   >
                     <Icon className="h-5 w-5" />
                     <div>
                       <div className="font-medium">{item.name}</div>
-                      <div className="text-sm opacity-75">
+                      <div className="text-sm text-white/70">
                         {item.description}
                       </div>
                     </div>
@@ -229,18 +252,18 @@ const Navbar: React.FC<NavbarProps> = ({ isLoggedIn }) => {
               })}
 
               {/* Menú de usuario en mobile */}
-              <div className="border-t border-gray-200 pt-4 mt-4">
+              <div className="pt-4 mt-4 border-t border-white/20">
                 <Link
                   to="/perfil"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors"
+                  className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-white hover:bg-white/10"
                 >
-                  <Avatar className="h-8 w-8">
+                  <Avatar className="h-8 w-8 ring-2 ring-white/30">
                     <AvatarImage
                       src={user.photoURL || "/placeholder.svg"}
                       alt={user.displayName || "Usuario"}
                     />
-                    <AvatarFallback className="bg-indigo-200 text-indigo-800">
+                    <AvatarFallback className="bg-white/20 text-white">
                       {user.displayName
                         ? user.displayName
                             .split(" ")
@@ -253,14 +276,14 @@ const Navbar: React.FC<NavbarProps> = ({ isLoggedIn }) => {
                     <div className="font-medium">
                       {user.displayName || "Usuario"}
                     </div>
-                    <div className="text-sm text-gray-500">Ver perfil</div>
+                    <div className="text-sm text-white/70">Ver perfil</div>
                   </div>
                 </Link>
 
                 <Button
                   variant="ghost"
                   onClick={handleLogout}
-                  className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 mt-2"
+                  className="w-full justify-start mt-2 text-red-300 hover:text-red-200 hover:bg-red-500/20"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
                   Cerrar sesión

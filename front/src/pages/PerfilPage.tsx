@@ -20,14 +20,17 @@ import {
   LogOut,
   Camera,
   Shield,
+  UserMinus,
 } from "lucide-react"
 
 import { getUserItineraries, deleteItineraryFromProfile } from "../services/itinerarioService"
-import { getUserEvents } from "../services/eventService"
+import { getUserEvents, unregisterUserFromEvent, deleteEvent } from "../services/eventService"
 import { auth } from "../../firebase/firebase.config"
 import { showToast } from "../lib/toast-utils"
 import { loadFromLocalStorage } from "../lib/utils"
 import { Loader2 } from "lucide-react"
+import EventoDetalleModal from "./EventoDetallePage"
+import { getVerificacion } from "../services/verificacionService"
 
 const PerfilPage: React.FC = () => {
   const navigate = useNavigate()
@@ -77,6 +80,15 @@ const PerfilPage: React.FC = () => {
           return;
         }
 
+        // Cargar estado de verificación
+        try {
+          const verificacion = await getVerificacion()
+          setIsVerified(verificacion)
+        } catch (error: any) {
+          console.error("Error loading verification status:", error)
+          setIsVerified(false)
+        }
+
         // Cargar itinerarios guardados
         try {
           const itinerariesResponse: any = await getUserItineraries(userId)
@@ -88,7 +100,7 @@ const PerfilPage: React.FC = () => {
         // Cargar eventos del usuario (eventos donde está registrado)
         try {
           const eventsResponse: any = await getUserEvents(userId)
-          setEvents(eventsResponse.data || [])
+          setEvents(eventsResponse || [])
         } catch (error: any) {
           console.error("Error loading events:", error)
         }
@@ -130,6 +142,44 @@ const PerfilPage: React.FC = () => {
     } catch (error: any) {
       console.error("Error deleting itinerary:", error)
       showToast.error("Error", error.message || "No se pudo eliminar el itinerario")
+    }
+  }
+
+  const handleUnregisterFromEvent = async (eventId: number) => {
+    try {
+      await unregisterUserFromEvent(eventId)
+      setEvents(events.filter(e => e.id !== eventId))
+      showToast.success("Te has dado de baja", "Ya no participas en este evento")
+    } catch (error: any) {
+      console.error("Error unregistering from event:", error)
+      showToast.error("Error", error.response?.data?.message || "No se pudo cancelar la inscripción")
+    }
+  }
+
+  const handleDeleteEvent = async (eventId: number) => {
+    if (!confirm("¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede deshacer.")) {
+      return
+    }
+
+    try {
+      await deleteEvent(eventId)
+      setEvents(events.filter(e => e.id !== eventId))
+      showToast.success("Evento eliminado", "El evento se eliminó correctamente")
+    } catch (error: any) {
+      console.error("Error deleting event:", error)
+      showToast.error("Error", error.response?.data?.message || "No se pudo eliminar el evento")
+    }
+  }
+
+  const reloadEvents = async () => {
+    const userLocal = loadFromLocalStorage("userData")
+    if (!userLocal?.usuario_id) return
+    
+    try {
+      const eventsResponse: any = await getUserEvents(userLocal.usuario_id)
+      setEvents(eventsResponse || [])
+    } catch (error) {
+      console.error("Error reloading events:", error)
     }
   }
 
@@ -362,27 +412,36 @@ const PerfilPage: React.FC = () => {
                           key={event.id}
                           className="overflow-hidden border-indigo-100 hover:shadow-md transition-shadow"
                         >
-                          <div className="h-40 overflow-hidden">
+                          <div className="relative h-40 overflow-hidden">
                             <img
                               src={event.image || "/placeholder.svg"}
                               alt={event.title}
                               className="w-full h-full object-cover"
                             />
+                            <div className="absolute top-3 right-3">
+                              <Badge className={event.isOwner ? "bg-indigo-600" : "bg-green-600"}>
+                                {event.role}
+                              </Badge>
+                            </div>
                           </div>
                           <CardContent className="p-4">
                             <h3 className="font-bold text-lg text-indigo-900 mb-2">{event.title}</h3>
                             <div className="space-y-2 text-sm text-gray-600 mb-4">
                               <div className="flex items-center gap-2">
                                 <MapPin className="h-4 w-4 text-indigo-600" />
-                                <span>{event.location}</span>
+                                <span>{event.location || 'Sin ubicación'}</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-indigo-600" />
-                                <span>{event.date}</span>
+                                <span>{event.date ? new Date(event.date).toLocaleDateString() : 'Sin fecha'}</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Clock className="h-4 w-4 text-indigo-600" />
-                                <span>{event.time}</span>
+                                <span>{event.time || 'Sin horario'}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Users className="h-4 w-4 text-indigo-600" />
+                                <span>{event.participants}/{event.maxParticipants || '∞'} participantes</span>
                               </div>
                             </div>
                             <div className="flex gap-2">
@@ -394,9 +453,33 @@ const PerfilPage: React.FC = () => {
                                 <Eye className="h-4 w-4 mr-2" />
                                 Ver
                               </Button>
-                              <Button variant="outline" className="flex-1 border-red-200 text-red-700 hover:bg-red-50">
-                                Cancelar
-                              </Button>
+                              {event.isOwner ? (
+                                <>
+                                  <Button 
+                                    variant="outline" 
+                                    className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                                    onClick={() => navigate(`/editar-evento/${event.id}`)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    className="border-red-200 text-red-700 hover:bg-red-50"
+                                    onClick={() => handleDeleteEvent(event.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button 
+                                  variant="outline" 
+                                  className="flex-1 border-red-200 text-red-700 hover:bg-red-50"
+                                  onClick={() => handleUnregisterFromEvent(event.id)}
+                                >
+                                  <UserMinus className="h-4 w-4 mr-2" />
+                                  Darme de baja
+                                </Button>
+                              )}
                             </div>
                           </CardContent>
                         </Card>
@@ -417,15 +500,25 @@ const PerfilPage: React.FC = () => {
                     </Card>
                   )}
                   {/* Modal evento */}
-                  {showEventModal.open && (
-                    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
-                      <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl p-6">
-                        {/* Aquí se puede importar y mostrar EventoDetalleModal */}
-                        <h2 className="text-xl font-bold mb-4">Detalle del evento</h2>
-                        {/* Reemplazar por <EventoDetalleModal event={showEventModal.event} open={true} onClose={() => setShowEventModal({ open: false, event: null })} /> */}
-                        <Button className="mt-4" onClick={() => setShowEventModal({ open: false, event: null })}>Cerrar</Button>
-                      </div>
-                    </div>
+                  {showEventModal.open && showEventModal.event && (
+                    <EventoDetalleModal 
+                      event={{
+                        evento_id: showEventModal.event.id,
+                        nombre_evento: showEventModal.event.title,
+                        descripcion_evento: showEventModal.event.description,
+                        imagen: showEventModal.event.image,
+                        fecha_inicio: showEventModal.event.date,
+                        horario: showEventModal.event.time,
+                        calle: showEventModal.event.location,
+                        participantes_actuales: showEventModal.event.participants,
+                        cant_participantes: showEventModal.event.maxParticipants,
+                        restriccion_edad: showEventModal.event.restriccion_edad,
+                        usuario_id: showEventModal.event.usuario_id
+                      }}
+                      open={showEventModal.open}
+                      onClose={() => setShowEventModal({ open: false, event: null })}
+                      onEventUpdate={reloadEvents}
+                    />
                   )}
                 </div>
               </TabsContent>

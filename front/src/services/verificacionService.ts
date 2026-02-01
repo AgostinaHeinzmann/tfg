@@ -38,3 +38,19 @@ export const getVerificacion = async () => {
     throw error;
   }
 }
+
+export interface VerificacionStatus {
+  verificacion: boolean;
+  fecha_nacimiento?: string | null;
+  edad?: number;
+}
+
+export const getVerificacionCompleta = async (): Promise<VerificacionStatus> => {
+  try { 
+    const response = await client.get<VerificacionStatus>('/verificacion/obtenerVerificacionCompleta');
+    return response.data;
+  }
+  catch (error) {
+    throw error;
+  }
+}

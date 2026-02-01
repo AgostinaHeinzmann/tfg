@@ -9,7 +9,6 @@ import RegistroPage from "./pages/RegistroPage"
 import PerfilPage from "./pages/PerfilPage"
 import EventosPage from "./pages/EventosPage"
 import CrearEventoPage from "./pages/CrearEventoPage"
-// import EventoDetallePage from "./pages/EventoDetallePage"
 import EventoChatPage from "./pages/EventoChatPage"
 import VerificarIdentidadPage from "./pages/VerificarIdentidadPage"
 import ItinerarioResultadoPage from "./pages/ItinerarioResultadoPage"
@@ -30,7 +29,7 @@ function AppContent() {
             <Route path="/perfil" element={<PerfilPage />} />
             <Route path="/eventos" element={<EventosPage />} />
             <Route path="/crear-evento" element={<CrearEventoPage />} />
-            {/* <Route path="/eventos/:id" element={<EventoDetallePage />} /> */}
+            <Route path="/editar-evento/:id" element={<CrearEventoPage />} />
             <Route path="/eventos/chat/:id" element={<EventoChatPage />} />
             <Route path="/verificar-identidad" element={<VerificarIdentidadPage />} />
             <Route path="/itinerario/resultado" element={<ItinerarioResultadoPage />} />

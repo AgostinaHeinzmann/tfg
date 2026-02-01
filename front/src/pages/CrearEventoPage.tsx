@@ -1,6 +1,6 @@
 import type React from "react"
-import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, useEffect, useRef } from "react"
+import { useNavigate, useParams } from "react-router-dom"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
 import { Label } from "../components/ui/label"
@@ -12,16 +12,20 @@ import { Calendar } from "../components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { CalendarIcon, Clock, ImageIcon, AlertCircle } from "lucide-react"
+import { CalendarIcon, ImageIcon, AlertCircle, X, Loader2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert"
 import { Map } from "../components/map"
 import { showToast } from "../lib/toast-utils"
-import { createEvent } from "../services/eventService"
+import { createEvent, updateEvent, getEventById } from "../services/eventService"
 import { auth } from "../../firebase/firebase.config"
 import { loadFromLocalStorage } from "@/lib/utils"
 
 const CrearEventoPage: React.FC = () => {
   const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>()
+  const isEditing = !!id
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -35,13 +39,76 @@ const CrearEventoPage: React.FC = () => {
     ageRestriction: false,
     minAge: "18",
     privateEvent: false,
-    coverImage: null as File | null,
+  })
+  const [coverImage, setCoverImage] = useState<{
+    base64: string | null
+    mimeType: string | null
+    preview: string | null
+  }>({
+    base64: null,
+    mimeType: null,
+    preview: null
   })
   const [loading, setLoading] = useState(false)
+  const [loadingEvent, setLoadingEvent] = useState(isEditing)
 
-  // Detección de ubicación inicial
+  // Cargar datos del evento si estamos editando
   useEffect(() => {
-    if (navigator.geolocation) {
+    const loadEventData = async () => {
+      if (!id) return
+
+      setLoadingEvent(true)
+      try {
+        const response: any = await getEventById(Number(id))
+        const event = response.data
+
+        // Verificar que el usuario actual es el propietario
+        const userData = loadFromLocalStorage("userData")
+        if (event.usuario_id !== userData?.usuario_id) {
+          showToast.error("Acceso denegado", "Solo el creador del evento puede editarlo")
+          navigate("/eventos")
+          return
+        }
+
+        // Cargar datos del evento en el formulario
+        setForm({
+          title: event.nombre_evento || "",
+          description: event.descripcion_evento || "",
+          category: "", // TODO: cargar categoria si existe
+          maxParticipants: event.cant_participantes?.toString() || "10",
+          location: event.calle || "",
+          coordinates: [41.3851, 2.1734], // TODO: obtener coordenadas reales
+          date: event.fecha_inicio ? new Date(event.fecha_inicio) : undefined,
+          time: event.horario || "",
+          duration: event.duracion?.toString() || "2",
+          ageRestriction: !!event.restriccion_edad,
+          minAge: event.restriccion_edad?.toString() || "18",
+          privateEvent: false,
+        })
+
+        // Cargar imagen si existe
+        if (event.imagen_base64) {
+          setCoverImage({
+            base64: event.imagen_base64,
+            mimeType: event.imagen_mime_type || "image/jpeg",
+            preview: `data:${event.imagen_mime_type || "image/jpeg"};base64,${event.imagen_base64}`
+          })
+        }
+      } catch (error: any) {
+        console.error("Error loading event:", error)
+        showToast.error("Error", "No se pudo cargar el evento")
+        navigate("/eventos")
+      } finally {
+        setLoadingEvent(false)
+      }
+    }
+
+    loadEventData()
+  }, [id, navigate])
+
+  // Detección de ubicación inicial (solo para crear)
+  useEffect(() => {
+    if (!isEditing && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setForm((prev) => ({ ...prev, coordinates: [pos.coords.latitude, pos.coords.longitude] }))
@@ -50,19 +117,16 @@ const CrearEventoPage: React.FC = () => {
         { enableHighAccuracy: true }
       )
     }
-  }, [])
+  }, [isEditing])
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target
-    if (type === "file" && e.target instanceof HTMLInputElement) {
-      setForm({ ...form, coverImage: e.target.files ? e.target.files[0] : null })
-    } else if (type === "checkbox" && e.target instanceof HTMLInputElement) {
+    if (type === "checkbox" && e.target instanceof HTMLInputElement) {
       setForm({ ...form, [name]: e.target.checked })
     } else {
       setForm({ ...form, [name]: value })
       // Geocodificación automática al escribir ubicación
       if (name === "location" && value.length > 5) {
-        // Ejemplo con Nominatim (OpenStreetMap)
         try {
           const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}`)
           const data = await res.json()
@@ -86,17 +150,63 @@ const CrearEventoPage: React.FC = () => {
     setForm({ ...form, date })
   }
 
-  const handleMapClick = (coords: [number, number], address: string) => {
-    setForm({ ...form, coordinates: coords, location: address })
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validar tamaño (máx 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showToast.error("Error", "La imagen no puede superar los 5MB")
+      return
+    }
+
+    // Validar tipo
+    if (!file.type.startsWith("image/")) {
+      showToast.error("Error", "Solo se permiten archivos de imagen")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const result = event.target?.result as string
+      // Extraer base64 sin el prefijo "data:..."
+      const base64 = result.split(",")[1]
+      setCoverImage({
+        base64,
+        mimeType: file.type,
+        preview: result
+      })
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveImage = () => {
+    setCoverImage({
+      base64: null,
+      mimeType: null,
+      preview: null
+    })
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validación
-    if (!form.title || !form.description || !form.category || !form.maxParticipants || !form.location || !form.date || !form.time || !form.duration) {
-      showToast.error("Error", "Completa todos los campos obligatorios")
-      return
+    // Validación - más flexible en modo edición
+    if (isEditing) {
+      // En modo edición, solo validar título (campo mínimo requerido)
+      if (!form.title) {
+        showToast.error("Error", "El título del evento es obligatorio")
+        return
+      }
+    } else {
+      // En modo creación, validar todos los campos obligatorios
+      if (!form.title || !form.description || !form.category || !form.maxParticipants || !form.location || !form.date || !form.time || !form.duration) {
+        showToast.error("Error", "Completa todos los campos obligatorios")
+        return
+      }
     }
 
     const user = auth.currentUser
@@ -106,7 +216,7 @@ const CrearEventoPage: React.FC = () => {
       return
     }
 
-    // Obtener usuario_id del localStorage (sincronizado con backend)
+    // Obtener usuario_id del localStorage
     const userData = loadFromLocalStorage("userData")
     const usuarioId = userData?.usuario_id
 
@@ -122,48 +232,87 @@ const CrearEventoPage: React.FC = () => {
       const eventData: any = {
         nombre_evento: form.title,
         descripcion_evento: form.description,
-        fecha_inicio: form.date.toISOString().split('T')[0], // formato YYYY-MM-DD
+        fecha_inicio: form.date ? form.date.toISOString().split('T')[0] : undefined,
         horario: form.time,
-        duracion: parseFloat(form.duration),
-        cant_participantes: parseInt(form.maxParticipants),
+        duracion: form.duration ? parseFloat(form.duration) : undefined,
+        cant_participantes: form.maxParticipants ? parseInt(form.maxParticipants) : undefined,
         usuario_id: usuarioId,
-        calle: form.location // Usar location como dirección completa por ahora
+        calle: form.location || undefined
       }
 
       // Agregar restricción de edad si está activada
       if (form.ageRestriction) {
         eventData.restriccion_edad = parseInt(form.minAge)
+      } else {
+        eventData.restriccion_edad = null
       }
 
-      // Crear el evento
-      await createEvent(eventData)
+      // Agregar imagen de portada si existe
+      if (coverImage.base64) {
+        eventData.imagen_base64 = coverImage.base64
+        eventData.imagen_mime_type = coverImage.mimeType
+      } else {
+        eventData.imagen_base64 = null
+        eventData.imagen_mime_type = null
+      }
 
-      showToast.success("Evento creado", "Tu evento ha sido registrado correctamente.")
+      if (isEditing) {
+        // Actualizar evento existente
+        await updateEvent(Number(id), eventData)
+        showToast.success("Evento actualizado", "Los cambios se guardaron correctamente.")
+      } else {
+        // Crear nuevo evento
+        await createEvent(eventData)
+        showToast.success("Evento creado", "Tu evento ha sido registrado correctamente.")
+      }
+
       navigate("/eventos")
     } catch (error: any) {
-      console.error("Error creating event:", error)
-      showToast.error("Error al crear evento", error.message || "No se pudo crear el evento")
+      console.error("Error saving event:", error)
+      showToast.error(
+        isEditing ? "Error al actualizar evento" : "Error al crear evento",
+        error.message || "No se pudo guardar el evento"
+      )
     } finally {
       setLoading(false)
     }
+  }
+
+  if (loadingEvent) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto mb-4" />
+          <p className="text-gray-600">Cargando evento...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <div className="container mx-auto max-w-3xl py-12 px-4">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-indigo-900 mb-2">Crear un nuevo evento</h1>
-          <p className="text-gray-600">Comparte tu experiencia con otros viajeros y crea conexiones inolvidables</p>
+          <h1 className="text-3xl font-bold text-indigo-900 mb-2">
+            {isEditing ? "Editar evento" : "Crear un nuevo evento"}
+          </h1>
+          <p className="text-gray-600">
+            {isEditing
+              ? "Modifica los detalles de tu evento"
+              : "Comparte tu experiencia con otros viajeros y crea conexiones inolvidables"}
+          </p>
         </div>
 
-        <Alert className="mb-6 border-amber-200 bg-amber-50 text-amber-800">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Importante</AlertTitle>
-          <AlertDescription>
-            Para crear un evento, es necesario tener la identidad verificada. Los eventos con restricción de edad
-            requerirán que los participantes verifiquen su identidad.
-          </AlertDescription>
-        </Alert>
+        {!isEditing && (
+          <Alert className="mb-6 border-amber-200 bg-amber-50 text-amber-800">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Importante</AlertTitle>
+            <AlertDescription>
+              Para crear un evento, es necesario tener la identidad verificada. Los eventos con restricción de edad
+              requerirán que los participantes verifiquen su identidad.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <form onSubmit={handleSubmit}>
           <Card className="border-indigo-100 shadow-md mb-6">
@@ -173,12 +322,12 @@ const CrearEventoPage: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="title">Título del evento *</Label>
-                <Input id="title" name="title" value={form.title} onChange={handleChange} placeholder="Ej. Tour gastronómico por Barcelona" required />
+                <Label htmlFor="title">Título del evento {!isEditing && '*'}</Label>
+                <Input id="title" name="title" value={form.title} onChange={handleChange} placeholder="Ej. Tour gastronómico por Barcelona" required={!isEditing} />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Descripción *</Label>
+                <Label htmlFor="description">Descripción {!isEditing && '*'}</Label>
                 <Textarea
                   id="description"
                   name="description"
@@ -186,14 +335,14 @@ const CrearEventoPage: React.FC = () => {
                   onChange={handleChange}
                   placeholder="Describe tu evento, qué harán los participantes, qué deben llevar, etc."
                   className="min-h-[120px] resize-none"
-                  required
+                  required={!isEditing}
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="category">Categoría *</Label>
-                  <Select value={form.category} onValueChange={v => handleSelect("category", v)} required>
+                  <Label htmlFor="category">Categoría {!isEditing && '*'}</Label>
+                  <Select value={form.category} onValueChange={v => handleSelect("category", v)} required={!isEditing}>
                     <SelectTrigger id="category">
                       <SelectValue placeholder="Selecciona una categoría" />
                     </SelectTrigger>
@@ -209,10 +358,53 @@ const CrearEventoPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="max-participants">Número máximo de participantes *</Label>
-                  <Input id="max-participants" name="maxParticipants" type="number" min="1" max="100" value={form.maxParticipants} onChange={handleChange} required />
+                  <Label htmlFor="max-participants">Número máximo de participantes {!isEditing && '*'}</Label>
+                  <Input id="max-participants" name="maxParticipants" type="number" min="1" max="100" value={form.maxParticipants} onChange={handleChange} required={!isEditing} />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-indigo-100 shadow-md mb-6">
+            <CardHeader>
+              <CardTitle>Imagen de portada</CardTitle>
+              <CardDescription>Añade una imagen atractiva para tu evento</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {coverImage.preview ? (
+                <div className="relative">
+                  <img
+                    src={coverImage.preview}
+                    alt="Portada del evento"
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2"
+                    onClick={handleRemoveImage}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-indigo-400 hover:bg-indigo-50 transition-colors cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <ImageIcon className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                  <p className="text-sm text-gray-600 mb-1">Haz clic para seleccionar una imagen</p>
+                  <p className="text-xs text-gray-400">PNG, JPG o JPEG (máx. 5MB)</p>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept="image/png,image/jpeg,image/jpg"
+                onChange={handleImageUpload}
+              />
             </CardContent>
           </Card>
 
@@ -223,14 +415,14 @@ const CrearEventoPage: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="location">Ubicación *</Label>
+                <Label htmlFor="location">Ubicación {!isEditing && '*'}</Label>
                 <Input
                   id="location"
                   name="location"
                   placeholder="Dirección completa del evento"
                   value={form.location}
                   onChange={handleChange}
-                  required
+                  required={!isEditing}
                 />
                 <div className="mt-3">
                   <Map
@@ -244,9 +436,9 @@ const CrearEventoPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <Label>Fecha *</Label>
+                  <Label>Fecha {!isEditing && '*'}</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start text-left font-normal bg-transparent">
@@ -267,17 +459,21 @@ const CrearEventoPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="time">Hora *</Label>
-                  <div className="relative">
-                    <Clock className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
-                    <Input id="time" name="time" type="time" className="pl-10" value={form.time} onChange={handleChange} required />
-                  </div>
+                  <Label htmlFor="time">Hora {!isEditing && '*'}</Label>
+                  <Input
+                    id="time"
+                    name="time"
+                    type="time"
+                    value={form.time}
+                    onChange={handleChange}
+                    required={!isEditing}
+                  />
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="duration">Duración (horas) *</Label>
-                <Input id="duration" name="duration" type="number" min="0.5" step="0.5" value={form.duration} onChange={handleChange} required />
+                <div className="space-y-2">
+                  <Label htmlFor="duration">Duración (horas) {!isEditing && '*'}</Label>
+                  <Input id="duration" name="duration" type="number" min="0.5" step="0.5" value={form.duration} onChange={handleChange} required={!isEditing} />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -314,16 +510,6 @@ const CrearEventoPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="cover-image">Imagen de portada</Label>
-                <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer">
-                  <ImageIcon className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                  <p className="text-sm text-gray-500 mb-1">Arrastra una imagen o haz clic para seleccionar</p>
-                  <p className="text-xs text-gray-400">PNG, JPG o JPEG (máx. 5MB)</p>
-                  <Input id="cover-image" name="coverImage" type="file" className="hidden" accept="image/*" onChange={handleChange} />
-                </div>
-              </div>
-
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="private-event" className="text-base">
@@ -341,7 +527,14 @@ const CrearEventoPage: React.FC = () => {
               Cancelar
             </Button>
             <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700" disabled={loading}>
-              {loading ? "Creando..." : "Crear evento"}
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isEditing ? "Guardando..." : "Creando..."}
+                </>
+              ) : (
+                isEditing ? "Guardar cambios" : "Crear evento"
+              )}
             </Button>
           </div>
         </form>

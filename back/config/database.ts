@@ -15,6 +15,7 @@ import { MensajeEvent } from "../models/MensajeEvent";
 import { Pais } from "../models/Pais";
 import { Publicacion } from "../models/Publicacion";
 import { PublicacionImagen } from "../models/PublicacionImagen";
+import { PublicacionLike } from "../models/PublicacionLike";
 dotenv.config();
 
 export const sequelize = new Sequelize({
@@ -52,5 +53,6 @@ export const sequelize = new Sequelize({
     Pais,
     Publicacion,
     PublicacionImagen,
+    PublicacionLike,
   ],
 });

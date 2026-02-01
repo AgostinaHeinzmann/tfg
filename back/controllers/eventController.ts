@@ -12,6 +12,37 @@ import InscripcionEvent from "../models/InscripcionEvent";
 import EventUser from "../models/EventUser";
 import { User } from "../models/User";
 
+// Función para obtener rango de fechas según el filtro
+const getDateRange = (dateFilter: string): { start: Date; end: Date } | null => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  switch (dateFilter) {
+    case 'today':
+      // Desde el inicio de hoy hasta el final de hoy
+      const endOfToday = new Date(today);
+      endOfToday.setHours(23, 59, 59, 999);
+      return { start: today, end: endOfToday };
+    
+    case 'week':
+      // Desde hoy hasta el final de la semana (próximo domingo)
+      const endOfWeek = new Date(today);
+      const daysUntilSunday = 7 - today.getDay();
+      endOfWeek.setDate(today.getDate() + daysUntilSunday);
+      endOfWeek.setHours(23, 59, 59, 999);
+      return { start: today, end: endOfWeek };
+    
+    case 'month':
+      // Desde hoy hasta el final del mes
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      endOfMonth.setHours(23, 59, 59, 999);
+      return { start: today, end: endOfMonth };
+    
+    default:
+      return null;
+  }
+};
+
 export const getAllEvents = async (
   req: Request,
   res: Response
@@ -43,8 +74,21 @@ export const getAllEvents = async (
       }
     }
 
-    if (date && !isNaN(Date.parse(date as string))) {
-      whereClause.fecha_inicio = { [Op.gte]: new Date(date as string) };
+    // Filtrar por fecha - soporta 'today', 'week', 'month' o una fecha específica
+    if (date) {
+      const dateStr = date as string;
+      const dateRange = getDateRange(dateStr);
+      
+      if (dateRange) {
+        // Es un filtro predefinido (today, week, month)
+        whereClause.fecha_inicio = {
+          [Op.gte]: dateRange.start,
+          [Op.lte]: dateRange.end
+        };
+      } else if (!isNaN(Date.parse(dateStr))) {
+        // Es una fecha específica en formato yyyy-mm-dd
+        whereClause.fecha_inicio = { [Op.gte]: new Date(dateStr) };
+      }
     }
 
     // Configurar paginación
@@ -55,6 +99,7 @@ export const getAllEvents = async (
       where: whereClause,
       offset,
       limit: pageSize,
+      subQuery: false,  // Añadir esta línea para evitar subconsultas
       include: [
         {
           model: Interes,
@@ -71,12 +116,6 @@ export const getAllEvents = async (
             {
               model: Ciudad,
               required: !!(location && location !== ''),
-              where: location && location !== '' ? {
-                [Op.or]: [
-                  { nombre: { [Op.iLike]: `%${location}%` } },
-                  { '$pais.nombre$': { [Op.iLike]: `%${location}%` } }
-                ]
-              } : undefined,
               include: [
                 {
                   model: Pais,
@@ -91,9 +130,23 @@ export const getAllEvents = async (
       order: [['fecha_inicio', 'ASC']]
     });
 
+    // Si hay filtro de location, filtrar en memoria por ciudad o país
+    let filteredEvents = events;
+    if (location && location !== '') {
+      const locationLower = (location as string).toLowerCase();
+      filteredEvents = events.filter(event => {
+        const ciudad = (event as any).direccion?.ciudad;
+        const pais = ciudad?.pais;
+        return (
+          ciudad?.nombre?.toLowerCase().includes(locationLower) ||
+          pais?.nombre?.toLowerCase().includes(locationLower)
+        );
+      });
+    }
+
     res.status(200).json({
       success: true,
-      data: events,
+      data: filteredEvents,
       pagination: {
         page: Number(page),
         pageSize,
@@ -212,7 +265,9 @@ export const createEvent = async (
       usuario_id,
       calle,
       numero,
-      imagen_id
+      imagen_id,
+      imagen_base64,
+      imagen_mime_type
     } = req.body;
 
     // Validaciones básicas
@@ -258,7 +313,9 @@ export const createEvent = async (
       usuario_id: Number(usuario_id),
       calle,
       numero,
-      imagen_id: imagen_id ? Number(imagen_id) : null
+      imagen_id: imagen_id ? Number(imagen_id) : null,
+      imagen_base64: imagen_base64 || null,
+      imagen_mime_type: imagen_mime_type || null
     } as any);
 
     // Crear automáticamente un mensaje inicial en el chat del evento
@@ -306,6 +363,15 @@ export const updateEvent = async (
       return;
     }
 
+    // Obtener el usuario autenticado
+    const authUser = req.user;
+    let requestingUserId: number | null = null;
+    
+    if (authUser?.uid) {
+      const authenticatedUser = await User.findOne({ where: { uid: authUser.uid } });
+      requestingUserId = authenticatedUser?.usuario_id ?? null;
+    }
+
     const {
       nombre_evento,
       descripcion_evento,
@@ -318,8 +384,19 @@ export const updateEvent = async (
       usuario_id,
       calle,
       numero,
-      imagen_id
+      imagen_id,
+      imagen_base64,
+      imagen_mime_type
     } = req.body;
+
+    // Verificar que el usuario que solicita es el creador del evento
+    if (requestingUserId && event.usuario_id !== requestingUserId) {
+      res.status(403).json({
+        success: false,
+        message: "Solo el creador del evento puede editarlo"
+      });
+      return;
+    }
 
     // Verificar que el usuario exista si se proporciona
     if (usuario_id) {
@@ -358,7 +435,9 @@ export const updateEvent = async (
       usuario_id: usuario_id !== undefined ? Number(usuario_id) : event.usuario_id,
       calle: calle ?? event.calle,
       numero: numero ?? event.numero,
-      imagen_id: imagen_id !== undefined ? Number(imagen_id) : event.imagen_id
+      imagen_id: imagen_id !== undefined ? Number(imagen_id) : event.imagen_id,
+      imagen_base64: imagen_base64 !== undefined ? imagen_base64 : event.imagen_base64,
+      imagen_mime_type: imagen_mime_type !== undefined ? imagen_mime_type : event.imagen_mime_type
     });
 
     res.status(200).json({
@@ -385,6 +464,15 @@ export const deleteEvent = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    
+    // Obtener el usuario autenticado
+    const authUser = req.user;
+    let requestingUserId: number | null = null;
+    
+    if (authUser?.uid) {
+      const authenticatedUser = await User.findOne({ where: { uid: authUser.uid } });
+      requestingUserId = authenticatedUser?.usuario_id ?? null;
+    }
 
     // Validar que el id sea un número válido
     if (!id || isNaN(Number(id))) {
@@ -399,12 +487,31 @@ export const deleteEvent = async (
       return;
     }
 
+    // Verificar que el usuario que solicita es el creador del evento
+    if (requestingUserId && event.usuario_id !== requestingUserId) {
+      res.status(403).json({
+        success: false,
+        message: "Solo el creador del evento puede eliminarlo"
+      });
+      return;
+    }
+
+    // Eliminar inscripciones relacionadas primero
+    await InscripcionEvent.destroy({
+      where: { evento_id: Number(id) }
+    });
+
+    // Eliminar mensajes relacionados
+    await MensajeEvent.destroy({
+      where: { evento_id: Number(id) }
+    });
+
     // Eliminar el evento
     await event.destroy();
 
     res.status(200).json({
       success: true,
-      message: "Event deleted successfully"
+      message: "Evento eliminado correctamente"
     });
 
   } catch (error) {
@@ -468,7 +575,15 @@ export const registerUserToEvent = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const { usuario_id } = req.body;
+
+    // Obtener el usuario autenticado
+    const authUser = req.user;
+    let usuario_id: number | null = null;
+    
+    if (authUser?.uid) {
+      const authenticatedUser = await User.findOne({ where: { uid: authUser.uid } });
+      usuario_id = authenticatedUser?.usuario_id ?? null;
+    }
 
     // Validar que el id del evento sea un número válido
     if (!id || isNaN(Number(id))) {
@@ -476,9 +591,9 @@ export const registerUserToEvent = async (
       return;
     }
 
-    // Validar que el usuario_id esté presente
+    // Validar que el usuario esté autenticado
     if (!usuario_id) {
-      res.status(400).json({ success: false, message: "usuario_id is required" });
+      res.status(401).json({ success: false, message: "Usuario no autenticado" });
       return;
     }
 
@@ -496,13 +611,72 @@ export const registerUserToEvent = async (
       return;
     }
 
+    // Verificar cupos disponibles
+    if (event.cant_participantes) {
+      const currentInscriptions = await InscripcionEvent.count({
+        where: { evento_id: Number(id) }
+      });
+      
+      if (currentInscriptions >= event.cant_participantes) {
+        res.status(400).json({ 
+          success: false, 
+          message: "El evento está lleno. No hay cupos disponibles.",
+          errorCode: "EVENT_FULL"
+        });
+        return;
+      }
+    }
+
+    // Si el evento tiene restricción de edad, validar verificación y edad del usuario
+    if (event.restriccion_edad && event.restriccion_edad > 0) {
+      // Verificar que el usuario tenga verificación aprobada
+      if (!user.verificacion) {
+        res.status(403).json({ 
+          success: false, 
+          message: "Este evento requiere verificación de identidad. Por favor, verifica tu identidad primero.",
+          errorCode: "VERIFICATION_REQUIRED"
+        });
+        return;
+      }
+
+      // Verificar que el usuario tenga fecha de nacimiento registrada
+      if (!user.fecha_nacimiento) {
+        res.status(403).json({ 
+          success: false, 
+          message: "No se encontró tu fecha de nacimiento. Por favor, verifica tu identidad.",
+          errorCode: "VERIFICATION_REQUIRED"
+        });
+        return;
+      }
+
+      // Calcular la edad del usuario
+      const today = new Date();
+      const birthDate = new Date(user.fecha_nacimiento);
+      let userAge = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        userAge--;
+      }
+
+      // Verificar que el usuario cumpla con la edad mínima
+      if (userAge < event.restriccion_edad) {
+        res.status(403).json({ 
+          success: false, 
+          message: `Debes tener al menos ${event.restriccion_edad} años para unirte a este evento. Tu edad actual es ${userAge} años.`,
+          errorCode: "AGE_RESTRICTION"
+        });
+        return;
+      }
+    }
+
     // Verificar si el usuario ya está inscrito
     const existingInscription = await InscripcionEvent.findOne({
       where: { evento_id: Number(id), usuario_id: Number(usuario_id) }
     });
 
     if (existingInscription) {
-      res.status(409).json({ success: false, message: "User is already registered to this event" });
+      res.status(409).json({ success: false, message: "Ya estás inscrito en este evento" });
       return;
     }
 
@@ -515,7 +689,7 @@ export const registerUserToEvent = async (
 
     res.status(201).json({
       success: true,
-      message: "User registered to event successfully",
+      message: "¡Te has unido al evento exitosamente!",
       data: inscription
     });
 
@@ -536,7 +710,16 @@ export const unregisterUserFromEvent = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id, usuario_id } = req.params;
+    const { id } = req.params;
+
+    // Obtener el usuario autenticado
+    const authUser = req.user;
+    let usuario_id: number | null = null;
+    
+    if (authUser?.uid) {
+      const authenticatedUser = await User.findOne({ where: { uid: authUser.uid } });
+      usuario_id = authenticatedUser?.usuario_id ?? null;
+    }
 
     // Validar que el id del evento sea un número válido
     if (!id || isNaN(Number(id))) {
@@ -544,9 +727,9 @@ export const unregisterUserFromEvent = async (
       return;
     }
 
-    // Validar que el usuario_id esté presente
-    if (!usuario_id || isNaN(Number(usuario_id))) {
-      res.status(400).json({ success: false, message: "Invalid user ID" });
+    // Validar que el usuario esté autenticado
+    if (!usuario_id) {
+      res.status(401).json({ success: false, message: "Usuario no autenticado" });
       return;
     }
 
@@ -559,7 +742,7 @@ export const unregisterUserFromEvent = async (
 
     // Buscar la inscripción
     const inscription = await InscripcionEvent.findOne({
-      where: { evento_id: Number(id), usuario_id: Number(usuario_id) }
+      where: { evento_id: Number(id), usuario_id: usuario_id }
     });
 
     if (!inscription) {
@@ -593,7 +776,16 @@ export const sendEventMessage = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const { usuario_id, mensaje } = req.body;
+    const { mensaje } = req.body;
+
+    // Obtener el usuario autenticado
+    const authUser = req.user;
+    let usuario_id: number | null = null;
+    
+    if (authUser?.uid) {
+      const authenticatedUser = await User.findOne({ where: { uid: authUser.uid } });
+      usuario_id = authenticatedUser?.usuario_id ?? null;
+    }
 
     // Validar que el id del evento sea un número válido
     if (!id || isNaN(Number(id))) {
@@ -664,12 +856,15 @@ export const getUserEvents = async (
     // Obtener eventos creados por el usuario
     const createdEvents = await Event.findAll({
       where: { usuario_id: Number(usuario_id) },
-      attributes: ['evento_id', 'nombre_evento', 'imagen_id', 'fecha_inicio'],
       include: [
         {
           model: Direccion,
           attributes: ['calle', 'numero'],
           include: [{ model: Ciudad, attributes: ['nombre'] }]
+        },
+        {
+          model: InscripcionEvent,
+          attributes: ['inscripcion_evento_id']
         }
       ]
     });
@@ -680,12 +875,15 @@ export const getUserEvents = async (
       include: [
         {
           model: Event,
-          attributes: ['evento_id', 'nombre_evento', 'imagen_id', 'fecha_inicio'],
           include: [
             {
               model: Direccion,
               attributes: ['calle', 'numero'],
               include: [{ model: Ciudad, attributes: ['nombre'] }]
+            },
+            {
+              model: InscripcionEvent,
+              attributes: ['inscripcion_evento_id']
             }
           ]
         }
@@ -697,25 +895,46 @@ export const getUserEvents = async (
       ...createdEvents.map(e => ({
         id: e.evento_id,
         title: e.nombre_evento,
-        image: e.imagen_id ? `/api/images/${e.imagen_id}` : '/placeholder.svg', // Ajustar según lógica de imágenes
+        description: e.descripcion_evento,
+        image: e.imagen_base64 
+          ? `data:${e.imagen_mime_type || 'image/jpeg'};base64,${e.imagen_base64}`
+          : (e.imagen_id ? `/api/images/${e.imagen_id}` : '/placeholder.svg'),
         date: e.fecha_inicio,
-        role: 'Anfitrión'
+        time: e.horario,
+        location: e.direccion?.calle ? `${e.direccion.calle}${e.direccion.numero ? ` ${e.direccion.numero}` : ''}` : e.calle || 'Sin ubicación',
+        city: (e.direccion as any)?.ciudad?.nombre || '',
+        participants: e.inscripciones?.length || 0,
+        maxParticipants: e.cant_participantes,
+        restriccion_edad: e.restriccion_edad,
+        usuario_id: e.usuario_id,
+        role: 'Anfitrión',
+        isOwner: true
       })),
-      ...joinedEvents.map(i => ({
-        id: i.evento?.evento_id,
-        title: i.evento?.nombre_evento,
-        image: i.evento?.imagen_id ? `/api/images/${i.evento?.imagen_id}` : '/placeholder.svg',
-        date: i.evento?.fecha_inicio,
-        role: 'Participante'
-      }))
+      ...joinedEvents
+        .filter(i => i.evento && i.evento.usuario_id !== Number(usuario_id)) // Excluir eventos propios
+        .map(i => ({
+          id: i.evento?.evento_id,
+          title: i.evento?.nombre_evento,
+          description: i.evento?.descripcion_evento,
+          image: i.evento?.imagen_base64 
+            ? `data:${i.evento?.imagen_mime_type || 'image/jpeg'};base64,${i.evento?.imagen_base64}`
+            : (i.evento?.imagen_id ? `/api/images/${i.evento?.imagen_id}` : '/placeholder.svg'),
+          date: i.evento?.fecha_inicio,
+          time: i.evento?.horario,
+          location: i.evento?.direccion?.calle ? `${i.evento.direccion.calle}${i.evento.direccion.numero ? ` ${i.evento.direccion.numero}` : ''}` : i.evento?.calle || 'Sin ubicación',
+          city: (i.evento?.direccion as any)?.ciudad?.nombre || '',
+          participants: i.evento?.inscripciones?.length || 0,
+          maxParticipants: i.evento?.cant_participantes,
+          restriccion_edad: i.evento?.restriccion_edad,
+          usuario_id: i.evento?.usuario_id,
+          role: 'Participante',
+          isOwner: false
+        }))
     ];
-
-    // Eliminar duplicados (si el creador también se inscribió)
-    const uniqueEvents = Array.from(new Map(events.map(item => [item.id, item])).values());
 
     res.status(200).json({
       success: true,
-      data: uniqueEvents
+      data: events
     });
 
   } catch (error) {

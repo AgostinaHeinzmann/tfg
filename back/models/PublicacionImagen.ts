@@ -30,6 +30,14 @@ export class PublicacionImagen extends Model<PublicacionImagen> {
   @Column(DataType.INTEGER)
   imagen_id?: number | null
 
+  @AllowNull(true)
+  @Column(DataType.TEXT)
+  imagen_base64?: string | null
+
+  @AllowNull(true)
+  @Column(DataType.STRING(50))
+  mime_type?: string | null
+
   // Associations
   @BelongsTo(() => Publicacion, { foreignKey: 'publicacion_id', targetKey: 'publicacion_id' })
   publicacion?: Publicacion

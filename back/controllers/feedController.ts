@@ -10,7 +10,7 @@ import PublicacionLike from "../models/PublicacionLike";
 // GET: Obtener feed con filtros (búsqueda por ciudad)
 export const getFeed = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { ciudad_id, page = 1, size = 10 } = req.query;
+    const { ciudad_id, page = 1, size = 10, usuario_id } = req.query;
     const pageNum = Math.max(1, Number(page));
     const pageSize = Math.min(50, Math.max(1, Number(size)));
     const offset = (pageNum - 1) * pageSize;
@@ -48,7 +48,7 @@ export const getFeed = async (req: Request, res: Response): Promise<void> => {
         },
         {
           model: PublicacionImagen,
-          attributes: ['publicacion_imagen_id', 'imagen_id']
+          attributes: ['publicacion_imagen_id', 'imagen_id', 'imagen_base64', 'mime_type']
         }
       ],
       order: [['fecha_creacion', 'DESC']],
@@ -56,9 +56,29 @@ export const getFeed = async (req: Request, res: Response): Promise<void> => {
       offset: offset
     });
 
+    // Si hay usuario_id, verificar qué publicaciones tienen like del usuario
+    let dataWithLikes: any[] = rows.map(row => row.toJSON());
+    
+    if (usuario_id) {
+      const userLikes = await PublicacionLike.findAll({
+        where: {
+          usuario_id: Number(usuario_id),
+          publicacion_id: rows.map(r => r.publicacion_id)
+        },
+        attributes: ['publicacion_id']
+      });
+      
+      const likedPublicacionIds = new Set(userLikes.map(like => like.publicacion_id));
+      
+      dataWithLikes = dataWithLikes.map((pub: any) => ({
+        ...pub,
+        liked: likedPublicacionIds.has(pub.publicacion_id)
+      }));
+    }
+
     res.status(200).json({
       success: true,
-      data: rows,
+      data: dataWithLikes,
       pagination: {
         total: count,
         page: pageNum,
@@ -115,7 +135,7 @@ export const getFeedById = async (req: Request, res: Response): Promise<void> =>
         },
         {
           model: PublicacionImagen,
-          attributes: ['publicacion_imagen_id', 'imagen_id']
+          attributes: ['publicacion_imagen_id', 'imagen_id', 'imagen_base64', 'mime_type']
         }
       ]
     });
@@ -183,12 +203,23 @@ export const createFeed = async (req: Request, res: Response): Promise<void> => 
       fecha_creacion: new Date()
     } as any);
 
-    // Agregar imágenes si se proporcionan
+    // Agregar imágenes si se proporcionan (nuevo formato con base64)
     if (imagenes && Array.isArray(imagenes) && imagenes.length > 0) {
-      const imagenesData = imagenes.map((imagen_id: number) => ({
-        publicacion_id: publicacion.publicacion_id,
-        imagen_id
-      }));
+      const imagenesData = imagenes.map((img: { base64: string; mimeType?: string } | number) => {
+        // Soportar tanto el formato antiguo (imagen_id) como el nuevo (base64)
+        if (typeof img === 'number') {
+          return {
+            publicacion_id: publicacion.publicacion_id,
+            imagen_id: img
+          };
+        } else {
+          return {
+            publicacion_id: publicacion.publicacion_id,
+            imagen_base64: img.base64,
+            mime_type: img.mimeType || 'image/jpeg'
+          };
+        }
+      });
       await PublicacionImagen.bulkCreate(imagenesData as any);
     }
 
@@ -207,7 +238,7 @@ export const createFeed = async (req: Request, res: Response): Promise<void> => 
         },
         {
           model: PublicacionImagen,
-          attributes: ['publicacion_imagen_id', 'imagen_id']
+          attributes: ['publicacion_imagen_id', 'imagen_id', 'imagen_base64', 'mime_type']
         }
       ]
     });
@@ -290,10 +321,15 @@ export const updateFeed = async (req: Request, res: Response): Promise<void> => 
 export const deleteFeed = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { usuario_id } = req.body;
+    const usuario_id = req.query.usuario_id || req.body?.usuario_id;
 
     if (!id || isNaN(Number(id))) {
       res.status(400).json({ success: false, message: "Invalid publication ID" });
+      return;
+    }
+
+    if (!usuario_id) {
+      res.status(400).json({ success: false, message: "usuario_id is required" });
       return;
     }
 
@@ -304,7 +340,7 @@ export const deleteFeed = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Verificar que el usuario sea el propietario
-    if (publicacion.usuario_id !== usuario_id) {
+    if (publicacion.usuario_id !== Number(usuario_id)) {
       res.status(403).json({ success: false, message: "Unauthorized: You can only delete your own publications" });
       return;
     }

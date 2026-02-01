@@ -22,6 +22,8 @@ export interface CreateEventData {
   calle?: string
   numero?: string
   imagen_id?: number
+  imagen_base64?: string
+  imagen_mime_type?: string
 }
 
 export interface UpdateEventData extends Partial<CreateEventData> { }
@@ -116,9 +118,9 @@ export const getEventMessages = async (id: number) => {
 /**
  * Registrar usuario a un evento
  */
-export const registerUserToEvent = async (eventId: number, usuarioId: number) => {
+export const registerUserToEvent = async (eventId: number) => {
   try {
-    const response = await client.post(`/event/${eventId}/register`, { usuario_id: usuarioId })
+    const response = await client.post(`/event/${eventId}/register`)
     return response.data
   } catch (error: any) {
     console.error('Error registering user to event:', error)
@@ -129,9 +131,9 @@ export const registerUserToEvent = async (eventId: number, usuarioId: number) =>
 /**
  * Desregistrar usuario de un evento
  */
-export const unregisterUserFromEvent = async (eventId: number, usuarioId: number) => {
+export const unregisterUserFromEvent = async (eventId: number) => {
   try {
-    const response = await client.delete(`/event/${eventId}/register/${usuarioId}`)
+    const response = await client.delete(`/event/${eventId}/register`)
     return response.data
   } catch (error: any) {
     console.error('Error unregistering user from event:', error)

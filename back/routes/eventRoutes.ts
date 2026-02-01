@@ -14,7 +14,7 @@ router.post("/:id/message", sendEventMessage);
 router.get("/user/:usuario_id", getUserEvents);
 router.post("/:id/register", registerUserToEvent)
 router.put("/:id", updateEvent)
-router.delete("/:id/register/:usuario_id", unregisterUserFromEvent)
+router.delete("/:id/register", unregisterUserFromEvent)
 router.delete("/:id", deleteEvent)
 
 

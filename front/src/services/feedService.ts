@@ -4,13 +4,19 @@ export interface FeedFilters {
   ciudad_id?: number
   page?: number
   size?: number
+  usuario_id?: number
+}
+
+export interface ImageData {
+  base64: string
+  mimeType: string
 }
 
 export interface CreateFeedData {
   usuario_id: number
   descripcion: string
   ciudad_id?: number
-  imagenes?: number[]
+  imagenes?: ImageData[]
 }
 
 export interface UpdateFeedData {
@@ -34,6 +40,7 @@ export const getFeed = async (filters?: FeedFilters) => {
     if (filters?.ciudad_id) params.append('ciudad_id', filters.ciudad_id.toString())
     if (filters?.page) params.append('page', filters.page.toString())
     if (filters?.size) params.append('size', filters.size.toString())
+    if (filters?.usuario_id) params.append('usuario_id', filters.usuario_id.toString())
 
     const response = await client.get(`/feed?${params.toString()}`)
     return response.data
@@ -100,9 +107,9 @@ export const deleteFeed = async (id: number, usuarioId: number) => {
 /**
  * Dar me gusta a una publicación
  */
-export const likePublication = async (id: number) => {
+export const likePublication = async (id: number, usuarioId: number) => {
   try {
-    const response = await client.post(`/feed/${id}/like`)
+    const response = await client.post(`/feed/${id}/like`, { usuario_id: usuarioId })
     return response.data
   } catch (error: any) {
     console.error('Error liking publication:', error)

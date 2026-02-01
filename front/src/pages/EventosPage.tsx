@@ -7,12 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
 import { Avatar, AvatarFallback } from "../components/ui/avatar"
 import { Calendar, MapPin, Clock, Users, Plus, CheckCircle, Eye, Loader2 } from "lucide-react"
-// import EventoDetalleModal from "./EventoDetallePage"
+import EventoDetalleModal from "./EventoDetallePage"
 import { showToast } from "../lib/toast-utils"
 import { getAllEvents, registerUserToEvent, type EventFilters } from "../services/eventService"
 import { getFilters } from "../services/filtrosService"
 import { auth } from "../../firebase/firebase.config"
-import { loadFromLocalStorage } from "@/lib/utils"
 
 const EventosPage: React.FC = () => {
   const navigate = useNavigate()
@@ -74,6 +73,7 @@ const EventosPage: React.FC = () => {
     if (selectedDate) newFilters.date = selectedDate
     setFilters(newFilters)
   }
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
@@ -252,45 +252,26 @@ function EventCard({ event, onEventUpdate }: { event: any; onEventUpdate: () => 
 
       setIsJoining(true)
 
-      // Obtener usuario_id del localStorage (sincronizado con backend)
-      const userData = loadFromLocalStorage("userData")
-      const usuarioId = userData?.usuario_id
-
-      if (!usuarioId) {
-        showToast.error("Error de sesión", "No se pudo identificar al usuario. Por favor, inicia sesión nuevamente.")
-        return
-      }
-
-      // // Si el evento tiene restricción de edad, verificar identidad
-      // if (event.restriccion_edad || event.ageRestriction) {
-      //   try {
-      //     const verificationStatus: any = await obtenerEstadoVerificacion(usuarioId)
-      //     if (!verificationStatus.success || verificationStatus.data?.estado !== 'aprobado') {
-      //       showToast.warning(
-      //         "Verificación requerida",
-      //         `Este evento tiene restricción de edad. Debes verificar tu identidad para poder unirte.`
-      //       )
-      //       navigate("/verificar-identidad")
-      //       return
-      //     }
-      //   } catch (error) {
-      //     console.error("Error checking verification:", error)
-      //     showToast.warning(
-      //       "Verificación requerida",
-      //       "Este evento requiere verificación de identidad."
-      //     )
-      //     navigate("/verificar-identidad")
-      //     return
-      //   }
-      // }
-
       // Registrar usuario en el evento
-      await registerUserToEvent(event.evento_id, usuarioId)
+      await registerUserToEvent(event.evento_id)
       showToast.success("¡Te has unido al evento!", "Tu inscripción fue exitosa.")
       onEventUpdate()
     } catch (error: any) {
       console.error("Error joining event:", error)
-      showToast.error("Error al unirse", error.message || "No se pudo completar la inscripción")
+      
+      const errorCode = error.response?.data?.errorCode
+      const errorMessage = error.response?.data?.message || error.message || "No se pudo completar la inscripción"
+      
+      if (errorCode === "VERIFICATION_REQUIRED") {
+        showToast.warning("Verificación requerida", errorMessage)
+        navigate("/verificar-identidad")
+      } else if (errorCode === "AGE_RESTRICTION") {
+        showToast.error("Restricción de edad", errorMessage)
+      } else if (errorCode === "EVENT_FULL") {
+        showToast.error("Evento lleno", errorMessage)
+      } else {
+        showToast.error("Error al unirse", errorMessage)
+      }
     } finally {
       setIsJoining(false)
     }
@@ -300,7 +281,15 @@ function EventCard({ event, onEventUpdate }: { event: any; onEventUpdate: () => 
     <>
       <Card className="overflow-hidden border-indigo-100 hover:shadow-md transition-shadow">
         <div className="relative h-48 overflow-hidden">
-          <img src={event.imagen || event.image || "/placeholder.svg"} alt={event.nombre_evento || event.title} className="w-full h-full object-cover" />
+          <img 
+            src={
+              event.imagen_base64 
+                ? `data:${event.imagen_mime_type || 'image/jpeg'};base64,${event.imagen_base64}`
+                : (event.imagen || event.image || "/placeholder.svg")
+            } 
+            alt={event.nombre_evento || event.title} 
+            className="w-full h-full object-cover" 
+          />
           <div className="absolute top-3 right-3">
             <Badge className={`${event.isOfficial ? "bg-indigo-600" : "bg-orange-500"}`}>
               {event.isOfficial ? (
@@ -375,9 +364,12 @@ function EventCard({ event, onEventUpdate }: { event: any; onEventUpdate: () => 
           </div>
         </CardContent>
       </Card>
-      {/* {modalOpen && (
-        <EventoDetalleModal event={event} open={modalOpen} onClose={() => setModalOpen(false)} />
-      )} */}
+      <EventoDetalleModal 
+        event={event} 
+        open={modalOpen} 
+        onClose={() => setModalOpen(false)} 
+        onEventUpdate={onEventUpdate}
+      />
     </>
   )
 }

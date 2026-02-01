@@ -78,6 +78,14 @@ export class Event extends Model<Event> {
   @Column(DataType.INTEGER)
   imagen_id?: number | null
 
+  @AllowNull(true)
+  @Column(DataType.TEXT)
+  imagen_base64?: string | null
+
+  @AllowNull(true)
+  @Column(DataType.STRING(50))
+  imagen_mime_type?: string | null
+
   // Associations
   @BelongsTo(() => User, { foreignKey: 'usuario_id', targetKey: 'usuario_id' })
   usuario?: User

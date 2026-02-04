@@ -9,9 +9,37 @@ import { Avatar, AvatarFallback } from "../components/ui/avatar"
 import { Calendar, MapPin, Clock, Users, Plus, CheckCircle, Eye, Loader2 } from "lucide-react"
 import EventoDetalleModal from "./EventoDetallePage"
 import { showToast } from "../lib/toast-utils"
+import { loadFromLocalStorage } from "../lib/utils"
 import { getAllEvents, registerUserToEvent, type EventFilters } from "../services/eventService"
 import { getFilters } from "../services/filtrosService"
 import { auth } from "../../firebase/firebase.config"
+
+// Función para formatear la hora correctamente
+const formatTime = (time: string | undefined): string => {
+  if (!time) return ""
+  
+  // Si ya está en formato HH:mm, devolverlo
+  if (/^\d{2}:\d{2}$/.test(time)) {
+    return time
+  }
+  
+  // Si viene en formato HH:mm:ss, quitar los segundos
+  if (/^\d{2}:\d{2}:\d{2}$/.test(time)) {
+    return time.substring(0, 5)
+  }
+  
+  // Si es una fecha ISO, extraer la hora
+  try {
+    const date = new Date(time)
+    if (!isNaN(date.getTime())) {
+      return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+    }
+  } catch {
+    // Ignorar error
+  }
+  
+  return time
+}
 
 const EventosPage: React.FC = () => {
   const navigate = useNavigate()
@@ -50,7 +78,9 @@ const EventosPage: React.FC = () => {
     setLoading(true)
     try {
       const response: any = await getAllEvents(filters)
-      setEvents(response.data || [])
+      // El backend devuelve { success: true, data: [...], totalPages, currentPage }
+      const eventData = response?.data || response || []
+      setEvents(Array.isArray(eventData) ? eventData : [])
     } catch (error: any) {
       console.error("Error loading events:", error)
       showToast.error("Error al cargar eventos", error.message || "No se pudieron cargar los eventos")
@@ -114,9 +144,13 @@ const EventosPage: React.FC = () => {
                   <div className="space-y-2">
                     <div className="font-medium">Categoría</div>
                     <div className="flex flex-wrap gap-2">
-                      {filterOptions.intereses.map((interes) => (
+                      {filterOptions.intereses
+                        .filter((interes, index, self) => 
+                          index === self.findIndex((i) => i.tipo === interes.tipo)
+                        )
+                        .map((interes) => (
                         <Badge
-                          key={interes.id}
+                          key={interes.tipo}
                           className={`cursor-pointer ${selectedCategory === interes.tipo
                             ? "bg-indigo-600 hover:bg-indigo-700 text-white"
                             : "bg-gray-100 text-gray-800 hover:bg-gray-200"
@@ -236,6 +270,11 @@ function EventCard({ event, onEventUpdate }: { event: any; onEventUpdate: () => 
   const navigate = useNavigate()
   const [modalOpen, setModalOpen] = useState(false)
   const [isJoining, setIsJoining] = useState(false)
+  
+  // Verificar si el usuario actual es el anfitrión/creador del evento
+  const userData = loadFromLocalStorage("userData")
+  const currentUserId = userData?.usuario_id
+  const isHost = currentUserId && (event.usuario_id === currentUserId || event.creador_id === currentUserId)
 
   const handleOpenModal = () => {
     setModalOpen(true)
@@ -291,19 +330,21 @@ function EventCard({ event, onEventUpdate }: { event: any; onEventUpdate: () => 
             className="w-full h-full object-cover" 
           />
           <div className="absolute top-3 right-3">
-            <Badge className={`${event.isOfficial ? "bg-indigo-600" : "bg-orange-500"}`}>
-              {event.isOfficial ? (
+            {isHost && (
+              <Badge className="bg-indigo-600">
                 <span className="flex items-center gap-1">
                   <CheckCircle className="h-3 w-3" />
-                  Oficial
+                  Anfitrión
                 </span>
-              ) : (
-                "Usuario"
-              )}
-            </Badge>
+              </Badge>
+            )}
           </div>
           <div className="absolute top-3 left-3">
-            <Badge className="bg-white/90 text-indigo-800">{event.categoria || event.category}</Badge>
+            {(event.categoria || event.category || event.interes?.tipo) && (
+              <Badge className="bg-white/90 text-indigo-800">
+                {event.categoria || event.category || event.interes?.tipo}
+              </Badge>
+            )}
           </div>
           {(event.restriccion_edad || event.ageRestriction) && (
             <div className="absolute bottom-3 left-3">
@@ -324,12 +365,12 @@ function EventCard({ event, onEventUpdate }: { event: any; onEventUpdate: () => 
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-indigo-600" />
-              <span>{event.horario || event.time}</span>
+              <span>{formatTime(event.horario || event.time)}</span>
             </div>
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-indigo-600" />
               <span>
-                {event.participantes_actuales || event.participants}/{event.cant_participantes || event.maxParticipants} participantes
+                {event.participantes_actuales ?? event.participants ?? 0}/{event.cant_participantes ?? event.maxParticipants ?? '∞'} participantes
               </span>
             </div>
           </div>
@@ -350,17 +391,23 @@ function EventCard({ event, onEventUpdate }: { event: any; onEventUpdate: () => 
           </div>
 
           <div className="flex gap-2">
-            <Button variant="outline" className="flex-1 border-indigo-200 text-indigo-700 hover:bg-indigo-50" onClick={handleOpenModal}>
+            <Button 
+              variant="outline" 
+              className={`${isHost ? 'w-full' : 'flex-1'} border-indigo-200 text-indigo-700 hover:bg-indigo-50`} 
+              onClick={handleOpenModal}
+            >
               <Eye className="h-4 w-4 mr-2" />
               Ver evento
             </Button>
-            <Button
-              className="flex-1 bg-indigo-600 hover:bg-indigo-700"
-              onClick={handleJoin}
-              disabled={isJoining}
-            >
-              {isJoining ? <Loader2 className="h-4 w-4 animate-spin" /> : "Unirse"}
-            </Button>
+            {!isHost && (
+              <Button
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+                onClick={handleJoin}
+                disabled={isJoining}
+              >
+                {isJoining ? <Loader2 className="h-4 w-4 animate-spin" /> : "Unirse"}
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -1,4 +1,5 @@
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet"
+import { useEffect } from "react"
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
 import { Button } from "./ui/button"
 import { ExternalLink } from "lucide-react"
 import "leaflet/dist/leaflet.css"
@@ -11,6 +12,22 @@ L.Icon.Default.mergeOptions({
   iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 })
+
+// Componente para actualizar la vista del mapa cuando cambian las coordenadas
+interface MapUpdaterProps {
+  center: [number, number]
+  zoom: number
+}
+
+const MapUpdater: React.FC<MapUpdaterProps> = ({ center, zoom }) => {
+  const map = useMap()
+
+  useEffect(() => {
+    map.setView(center, zoom)
+  }, [center, zoom, map])
+
+  return null
+}
 
 interface MapProps {
   center?: [number, number]
@@ -49,8 +66,15 @@ export const Map: React.FC<MapProps> = ({
           </Button>
         </div>
       )}
-      <div className="rounded-lg overflow-hidden border border-gray-200" style={{ height }}>
-        <MapContainer center={center} zoom={zoom} style={{ height: "100%", width: "100%" }} scrollWheelZoom={false}>
+      <div className="rounded-lg overflow-hidden border border-gray-200 touch-none relative z-0" style={{ height }}>
+        <MapContainer 
+          center={center} 
+          zoom={zoom} 
+          style={{ height: "100%", width: "100%", zIndex: 0 }} 
+          scrollWheelZoom={false}
+          dragging={!L.Browser.mobile}
+          touchZoom={false}
+        >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -63,6 +87,7 @@ export const Map: React.FC<MapProps> = ({
               </div>
             </Popup>
           </Marker>
+          <MapUpdater center={center} zoom={zoom} />
         </MapContainer>
       </div>
     </div>

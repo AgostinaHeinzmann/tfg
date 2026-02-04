@@ -184,6 +184,18 @@
 .leaflet-container {
   max-width: 100%;
   max-height: 100%;
+  z-index: 0 !important;
+}
+
+/* Fix z-index for map pane to not overlap navbar */
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 0 !important;
+}
+
+.leaflet-control {
+  z-index: 1 !important;
 }
 
 /* Fix for attribution positioning */

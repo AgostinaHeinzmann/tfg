@@ -21,9 +21,12 @@ export interface CreateEventData {
   usuario_id: number
   calle?: string
   numero?: string
+  latitud?: number
+  longitud?: number
   imagen_id?: number
   imagen_base64?: string
   imagen_mime_type?: string
+  intereses?: string[] | string
 }
 
 export interface UpdateEventData extends Partial<CreateEventData> { }

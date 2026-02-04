@@ -61,19 +61,10 @@ export const getAllEvents = async (
     // Construir el where clause
     let whereClause: any = {};
 
-    // Añadir condiciones solo si los parámetros están presentes
-
-
-    if (ageGroup && !isNaN(Number(ageGroup))) {
-      const ageGroupNumber = Number(ageGroup);
-      if (ageGroups[ageGroupNumber]) {
-        whereClause.restriccion_edad = {
-          [Op.gte]: ageGroups[ageGroupNumber][0],
-          [Op.lte]: ageGroups[ageGroupNumber][1],
-        };
-      }
-    }
-
+    // Por defecto, solo mostrar eventos futuros (fecha_inicio >= hoy) o sin fecha
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    
     // Filtrar por fecha - soporta 'today', 'week', 'month' o una fecha específica
     if (date) {
       const dateStr = date as string;
@@ -88,6 +79,23 @@ export const getAllEvents = async (
       } else if (!isNaN(Date.parse(dateStr))) {
         // Es una fecha específica en formato yyyy-mm-dd
         whereClause.fecha_inicio = { [Op.gte]: new Date(dateStr) };
+      }
+    } else {
+      // Filtro por defecto: solo eventos futuros o sin fecha definida
+      whereClause[Op.or] = [
+        { fecha_inicio: { [Op.gte]: todayStart } },
+        { fecha_inicio: { [Op.is]: null } }
+      ];
+    }
+
+    // Añadir condiciones solo si los parámetros están presentes
+    if (ageGroup && !isNaN(Number(ageGroup))) {
+      const ageGroupNumber = Number(ageGroup);
+      if (ageGroups[ageGroupNumber]) {
+        whereClause.restriccion_edad = {
+          [Op.gte]: ageGroups[ageGroupNumber][0],
+          [Op.lte]: ageGroups[ageGroupNumber][1],
+        };
       }
     }
 
@@ -251,7 +259,6 @@ export const createEvent = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  console.log('Request body:', req.body);
   try {
     const {
       nombre_evento,
@@ -267,7 +274,8 @@ export const createEvent = async (
       numero,
       imagen_id,
       imagen_base64,
-      imagen_mime_type
+      imagen_mime_type,
+      intereses // Array de strings con los tipos de interés, ej: ["Cultura", "Arte"]
     } = req.body;
 
     // Validaciones básicas
@@ -325,10 +333,35 @@ export const createEvent = async (
       fecha_creacion: new Date()
     } as any);
 
+    // Crear los intereses asociados al evento si se proporcionan
+    // Normalizar intereses: puede venir como array o como string separado por comas
+    let interesesArray: string[] = [];
+    if (intereses) {
+      if (Array.isArray(intereses)) {
+        interesesArray = intereses.filter((i: any) => i && typeof i === 'string' && i.trim() !== '');
+      } else if (typeof intereses === 'string' && intereses.trim() !== '') {
+        interesesArray = intereses.split(',').map((i: string) => i.trim()).filter((i: string) => i !== '');
+      }
+    }
+    
+    if (interesesArray.length > 0) {
+      const interesesData = interesesArray.map((tipo: string) => ({
+        evento_id: newEvent.evento_id,
+        itinerario_id: null,
+        tipo: tipo.trim()
+      }));
+      await Interes.bulkCreate(interesesData as any);
+    }
+
+    // Obtener el evento con sus intereses para devolverlo
+    const eventWithIntereses = await Event.findByPk(newEvent.evento_id, {
+      include: [{ model: Interes, as: 'intereses' }]
+    });
+
     res.status(201).json({
       success: true,
       message: "Event created successfully",
-      data: newEvent
+      data: eventWithIntereses
     });
 
   } catch (error) {
@@ -386,7 +419,8 @@ export const updateEvent = async (
       numero,
       imagen_id,
       imagen_base64,
-      imagen_mime_type
+      imagen_mime_type,
+      intereses // Array de strings con los tipos de interés
     } = req.body;
 
     // Verificar que el usuario que solicita es el creador del evento
@@ -440,10 +474,31 @@ export const updateEvent = async (
       imagen_mime_type: imagen_mime_type !== undefined ? imagen_mime_type : event.imagen_mime_type
     });
 
+    // Actualizar intereses si se proporcionan
+    if (intereses !== undefined && Array.isArray(intereses)) {
+      // Eliminar intereses existentes del evento
+      await Interes.destroy({ where: { evento_id: Number(id) } });
+      
+      // Crear nuevos intereses si hay alguno
+      if (intereses.length > 0) {
+        const interesesData = intereses.map((tipo: string) => ({
+          evento_id: Number(id),
+          itinerario_id: null,
+          tipo: tipo.trim()
+        }));
+        await Interes.bulkCreate(interesesData as any);
+      }
+    }
+
+    // Obtener el evento actualizado con sus intereses
+    const updatedEvent = await Event.findByPk(Number(id), {
+      include: [{ model: Interes, as: 'intereses' }]
+    });
+
     res.status(200).json({
       success: true,
       message: "Event updated successfully",
-      data: event
+      data: updatedEvent
     });
 
   } catch (error) {
@@ -503,6 +558,11 @@ export const deleteEvent = async (
 
     // Eliminar mensajes relacionados
     await MensajeEvent.destroy({
+      where: { evento_id: Number(id) }
+    });
+
+    // Eliminar intereses relacionados
+    await Interes.destroy({
       where: { evento_id: Number(id) }
     });
 
@@ -853,9 +913,19 @@ export const getUserEvents = async (
       return;
     }
 
-    // Obtener eventos creados por el usuario
+    // Fecha de hoy para filtrar eventos pasados
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Obtener eventos creados por el usuario (solo futuros o sin fecha)
     const createdEvents = await Event.findAll({
-      where: { usuario_id: Number(usuario_id) },
+      where: { 
+        usuario_id: Number(usuario_id),
+        [Op.or]: [
+          { fecha_inicio: { [Op.gte]: today } },
+          { fecha_inicio: { [Op.is]: null } }
+        ]
+      },
       include: [
         {
           model: Direccion,
@@ -911,7 +981,16 @@ export const getUserEvents = async (
         isOwner: true
       })),
       ...joinedEvents
-        .filter(i => i.evento && i.evento.usuario_id !== Number(usuario_id)) // Excluir eventos propios
+        .filter(i => {
+          // Excluir eventos propios
+          if (!i.evento || i.evento.usuario_id === Number(usuario_id)) return false;
+          // Excluir eventos pasados
+          if (i.evento.fecha_inicio) {
+            const eventDate = new Date(i.evento.fecha_inicio);
+            if (eventDate < today) return false;
+          }
+          return true;
+        })
         .map(i => ({
           id: i.evento?.evento_id,
           title: i.evento?.nombre_evento,

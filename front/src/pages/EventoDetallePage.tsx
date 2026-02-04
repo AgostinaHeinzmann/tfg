@@ -7,8 +7,86 @@ import { Badge } from "../components/ui/badge"
 import { MapPin, Calendar, Clock, Users, CheckCircle, Loader2 } from "lucide-react"
 import { Map } from "../components/map"
 import { showToast } from "../lib/toast-utils"
+import { loadFromLocalStorage } from "../lib/utils"
 import { getEventById, registerUserToEvent } from "../services/eventService"
 import { auth } from "../../firebase/firebase.config"
+
+// Función para obtener las coordenadas del evento desde diferentes ubicaciones posibles
+const getEventCoordinates = (event: any): [number, number] | null => {
+  // Intentar obtener coordenadas directamente del evento
+  if (event?.latitud != null && event?.longitud != null) {
+    const lat = typeof event.latitud === 'string' ? parseFloat(event.latitud) : event.latitud
+    const lon = typeof event.longitud === 'string' ? parseFloat(event.longitud) : event.longitud
+    if (!isNaN(lat) && !isNaN(lon)) {
+      return [lat, lon]
+    }
+  }
+  // Intentar desde direccion
+  if (event?.direccion?.latitud != null && event?.direccion?.longitud != null) {
+    const lat = typeof event.direccion.latitud === 'string' ? parseFloat(event.direccion.latitud) : event.direccion.latitud
+    const lon = typeof event.direccion.longitud === 'string' ? parseFloat(event.direccion.longitud) : event.direccion.longitud
+    if (!isNaN(lat) && !isNaN(lon)) {
+      return [lat, lon]
+    }
+  }
+  // Fallback a coordinates si existe
+  if (event?.coordinates && Array.isArray(event.coordinates) && event.coordinates.length === 2) {
+    const lat = typeof event.coordinates[0] === 'string' ? parseFloat(event.coordinates[0]) : event.coordinates[0]
+    const lon = typeof event.coordinates[1] === 'string' ? parseFloat(event.coordinates[1]) : event.coordinates[1]
+    if (!isNaN(lat) && !isNaN(lon)) {
+      return [lat, lon]
+    }
+  }
+  // No hay coordenadas válidas
+  return null
+}
+
+// Función para geocodificar una dirección
+const geocodeAddress = async (address: string): Promise<[number, number] | null> => {
+  if (!address || address.length < 3) return null
+  
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`)
+    const data = await res.json()
+    if (data && data.length > 0) {
+      const lat = parseFloat(data[0].lat)
+      const lon = parseFloat(data[0].lon)
+      if (!isNaN(lat) && !isNaN(lon)) {
+        return [lat, lon]
+      }
+    }
+  } catch (err) {
+    console.error("Error geocoding address:", err)
+  }
+  return null
+}
+
+// Función para formatear la hora correctamente
+const formatTime = (time: string | undefined): string => {
+  if (!time) return ""
+  
+  // Si ya está en formato HH:mm, devolverlo
+  if (/^\d{2}:\d{2}$/.test(time)) {
+    return time
+  }
+  
+  // Si viene en formato HH:mm:ss, quitar los segundos
+  if (/^\d{2}:\d{2}:\d{2}$/.test(time)) {
+    return time.substring(0, 5)
+  }
+  
+  // Si es una fecha ISO, extraer la hora
+  try {
+    const date = new Date(time)
+    if (!isNaN(date.getTime())) {
+      return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+    }
+  } catch {
+    // Ignorar error
+  }
+  
+  return time
+}
 
 interface EventoDetalleModalProps {
   event: any
@@ -24,8 +102,14 @@ const EventoDetalleModal: React.FC<EventoDetalleModalProps> = ({ event: initialE
   const [loading, setLoading] = useState(false)
   const [isJoined, setIsJoined] = useState(false)
   const [isJoining, setIsJoining] = useState(false)
+  const [mapCoordinates, setMapCoordinates] = useState<[number, number]>([41.3851, 2.1734])
+  
+  // Verificar si el usuario actual es el anfitrión/creador del evento
+  const userData = loadFromLocalStorage("userData")
+  const currentUserId = userData?.usuario_id
+  const isHost = currentUserId && (event?.usuario_id === currentUserId || event?.creador_id === currentUserId)
 
-  // Cargar detalles completos del evento
+  // Cargar detalles completos del evento y geocodificar si es necesario
   useEffect(() => {
     const loadEventDetails = async () => {
       if (!open || !initialEvent?.evento_id) return
@@ -34,7 +118,23 @@ const EventoDetalleModal: React.FC<EventoDetalleModalProps> = ({ event: initialE
       try {
         const response: any = await getEventById(initialEvent.evento_id)
         if (response.success && response.data) {
-          setEvent(response.data)
+          const eventData = response.data
+          setEvent(eventData)
+          
+          // Intentar obtener coordenadas del evento
+          const coords = getEventCoordinates(eventData)
+          if (coords) {
+            setMapCoordinates(coords)
+          } else {
+            // Si no hay coordenadas, intentar geocodificar la dirección
+            const address = eventData?.direccion?.calle || eventData?.calle || eventData?.location
+            if (address) {
+              const geocodedCoords = await geocodeAddress(address)
+              if (geocodedCoords) {
+                setMapCoordinates(geocodedCoords)
+              }
+            }
+          }
         }
       } catch (error) {
         console.error("Error loading event details:", error)
@@ -132,17 +232,19 @@ const EventoDetalleModal: React.FC<EventoDetalleModalProps> = ({ event: initialE
             />
           </div>
           <div className="flex gap-2">
-            <Badge className={`${event?.isOfficial ? "bg-indigo-600" : "bg-orange-500"}`}>
-              {event?.isOfficial ? (
+            {isHost && (
+              <Badge className="bg-indigo-600">
                 <span className="flex items-center gap-1">
                   <CheckCircle className="h-3 w-3" />
-                  Oficial
+                  Anfitrión
                 </span>
-              ) : (
-                "Usuario"
-              )}
-            </Badge>
-            <Badge className="bg-gray-100 text-gray-800">{event?.categoria || event?.category}</Badge>
+              </Badge>
+            )}
+            {(event?.categoria || event?.category || event?.interes?.tipo) && (
+              <Badge className="bg-gray-100 text-gray-800">
+                {event?.categoria || event?.category || event?.interes?.tipo}
+              </Badge>
+            )}
             {(event?.restriccion_edad || event?.ageRestriction) && <Badge className="bg-amber-500">+{event?.restriccion_edad || event?.minAge || 18}</Badge>}
           </div>
 
@@ -159,7 +261,7 @@ const EventoDetalleModal: React.FC<EventoDetalleModalProps> = ({ event: initialE
             </div>
             <div className="flex items-center gap-2 text-gray-700">
               <Clock className="h-4 w-4 text-indigo-600" />
-              <span>{event?.horario || event?.time}</span>
+              <span>{formatTime(event?.horario || event?.time)}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-700">
               <Users className="h-4 w-4 text-indigo-600" />
@@ -171,20 +273,20 @@ const EventoDetalleModal: React.FC<EventoDetalleModalProps> = ({ event: initialE
 
           <div className="pt-2">
             <Map
-              center={event?.coordinates || [41.3851, 2.1734]}
+              center={mapCoordinates}
               zoom={16}
               height="200px"
-              address={event?.direccion?.calle || event?.location}
+              address={event?.direccion?.calle || event?.calle || event?.location}
               title={event?.nombre_evento || event?.title}
               showGoogleMapsButton={true}
             />
           </div>
 
           <div className="flex gap-3 pt-4">
-            <Button variant="outline" className="flex-1 bg-transparent" onClick={handleClose}>
+            <Button variant="outline" className={`${isHost ? 'w-full' : 'flex-1'} bg-transparent`} onClick={handleClose}>
               Volver
             </Button>
-            {!autoJoin && !isJoined && (
+            {!isHost && !autoJoin && !isJoined && (
               <Button 
                 className="flex-1 bg-indigo-600 hover:bg-indigo-700" 
                 onClick={handleJoinEvent}
@@ -194,7 +296,7 @@ const EventoDetalleModal: React.FC<EventoDetalleModalProps> = ({ event: initialE
                 {isJoining ? "Uniéndose..." : "Unirse al evento"}
               </Button>
             )}
-            {isJoined && (
+            {!isHost && isJoined && (
               <Button 
                 className="flex-1 bg-green-600 hover:bg-green-700" 
                 disabled

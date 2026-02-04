@@ -17,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert"
 import { Map } from "../components/map"
 import { showToast } from "../lib/toast-utils"
 import { createEvent, updateEvent, getEventById } from "../services/eventService"
+import { getFilters } from "../services/filtrosService"
 import { auth } from "../../firebase/firebase.config"
 import { loadFromLocalStorage } from "@/lib/utils"
 
@@ -51,6 +52,22 @@ const CrearEventoPage: React.FC = () => {
   })
   const [loading, setLoading] = useState(false)
   const [loadingEvent, setLoadingEvent] = useState(isEditing)
+  const [interesesOptions, setInteresesOptions] = useState<Array<{ id: number; tipo: string }>>([]) 
+
+  // Cargar opciones de intereses desde el backend
+  useEffect(() => {
+    const loadIntereses = async () => {
+      try {
+        const response: any = await getFilters()
+        if (response.success && response.data?.intereses) {
+          setInteresesOptions(response.data.intereses)
+        }
+      } catch (error) {
+        console.error("Error loading intereses:", error)
+      }
+    }
+    loadIntereses()
+  }, [])
 
   // Cargar datos del evento si estamos editando
   useEffect(() => {
@@ -77,7 +94,9 @@ const CrearEventoPage: React.FC = () => {
           category: "", // TODO: cargar categoria si existe
           maxParticipants: event.cant_participantes?.toString() || "10",
           location: event.calle || "",
-          coordinates: [41.3851, 2.1734], // TODO: obtener coordenadas reales
+          coordinates: event.latitud && event.longitud 
+            ? [event.latitud, event.longitud] 
+            : [41.3851, 2.1734],
           date: event.fecha_inicio ? new Date(event.fecha_inicio) : undefined,
           time: event.horario || "",
           duration: event.duracion?.toString() || "2",
@@ -237,7 +256,14 @@ const CrearEventoPage: React.FC = () => {
         duracion: form.duration ? parseFloat(form.duration) : undefined,
         cant_participantes: form.maxParticipants ? parseInt(form.maxParticipants) : undefined,
         usuario_id: usuarioId,
-        calle: form.location || undefined
+        calle: form.location || undefined,
+        latitud: form.coordinates[0],
+        longitud: form.coordinates[1]
+      }
+
+      // Agregar intereses/categoría si está seleccionada
+      if (form.category) {
+        eventData.intereses = [form.category]
       }
 
       // Agregar restricción de edad si está activada
@@ -347,12 +373,26 @@ const CrearEventoPage: React.FC = () => {
                       <SelectValue placeholder="Selecciona una categoría" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="cultura">Cultura</SelectItem>
-                      <SelectItem value="gastronomia">Gastronomía</SelectItem>
-                      <SelectItem value="aventura">Aventura</SelectItem>
-                      <SelectItem value="fiesta">Fiesta</SelectItem>
-                      <SelectItem value="deporte">Deporte</SelectItem>
-                      <SelectItem value="naturaleza">Naturaleza</SelectItem>
+                      {interesesOptions.length > 0 ? (
+                        interesesOptions
+                          .filter((interes, index, self) => 
+                            index === self.findIndex((i) => i.tipo === interes.tipo)
+                          )
+                          .map((interes) => (
+                          <SelectItem key={interes.tipo} value={interes.tipo}>
+                            {interes.tipo}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <>
+                          <SelectItem value="Cultura">Cultura</SelectItem>
+                          <SelectItem value="Gastronomía">Gastronomía</SelectItem>
+                          <SelectItem value="Aventura">Aventura</SelectItem>
+                          <SelectItem value="Fiesta">Fiesta</SelectItem>
+                          <SelectItem value="Deporte">Deporte</SelectItem>
+                          <SelectItem value="Naturaleza">Naturaleza</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -509,16 +549,6 @@ const CrearEventoPage: React.FC = () => {
                   </Select>
                 </div>
               )}
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="private-event" className="text-base">
-                    Evento privado
-                  </Label>
-                  <p className="text-sm text-gray-500">Solo visible para personas con el enlace</p>
-                </div>
-                <Switch id="private-event" checked={form.privateEvent} onCheckedChange={v => setForm({ ...form, privateEvent: v })} />
-              </div>
             </CardContent>
           </Card>
 

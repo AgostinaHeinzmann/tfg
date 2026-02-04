@@ -32,6 +32,33 @@ import { Loader2 } from "lucide-react"
 import EventoDetalleModal from "./EventoDetallePage"
 import { getVerificacion } from "../services/verificacionService"
 
+// Función para formatear la hora correctamente
+const formatTime = (time: string | undefined): string => {
+  if (!time) return "Sin horario"
+  
+  // Si ya está en formato HH:mm, devolverlo
+  if (/^\d{2}:\d{2}$/.test(time)) {
+    return time
+  }
+  
+  // Si viene en formato HH:mm:ss, quitar los segundos
+  if (/^\d{2}:\d{2}:\d{2}$/.test(time)) {
+    return time.substring(0, 5)
+  }
+  
+  // Si es una fecha ISO, extraer la hora
+  try {
+    const date = new Date(time)
+    if (!isNaN(date.getTime())) {
+      return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+    }
+  } catch {
+    // Ignorar error
+  }
+  
+  return time
+}
+
 const PerfilPage: React.FC = () => {
   const navigate = useNavigate()
   const [isVerified, setIsVerified] = useState(false)
@@ -45,8 +72,9 @@ const PerfilPage: React.FC = () => {
     photoURL: ""
   })
   const [editProfileOpen, setEditProfileOpen] = useState(false)
-  const [editName, setEditName] = useState(userData.name)
-  const [editPhoto, setEditPhoto] = useState(userData.photoURL || userData.avatar)
+  const [editName, setEditName] = useState("")
+  const [editSurname, setEditSurname] = useState("")
+  const [editLocation, setEditLocation] = useState("")
   const [itineraries, setItineraries] = useState<any[]>([])
   const [events, setEvents] = useState<any[]>([])
   const [showItineraryModal, setShowItineraryModal] = useState<{ open: boolean; itinerary: any | null }>({ open: false, itinerary: null })
@@ -70,8 +98,10 @@ const PerfilPage: React.FC = () => {
 
         if (userLocal) {
           setUserData((prev) => ({ ...prev, ...userLocal }))
-          setEditName(userLocal.name || userLocal.displayName || userData.name)
-          setEditPhoto(userLocal.photoURL || userLocal.avatar || userData.avatar)
+          const nameParts = (userLocal.name || userLocal.displayName || userData.name).split(" ")
+          setEditName(nameParts[0] || "")
+          setEditSurname(nameParts.slice(1).join(" ") || "")
+          setEditLocation(userLocal.location || userData.location)
           userId = userLocal.usuario_id;
         }
 
@@ -119,11 +149,16 @@ const PerfilPage: React.FC = () => {
   }
 
   const handleEditProfile = () => {
+    const nameParts = userData.name.split(" ")
+    setEditName(nameParts[0] || "")
+    setEditSurname(nameParts.slice(1).join(" ") || "")
+    setEditLocation(userData.location)
     setEditProfileOpen(true)
   }
 
   const handleSaveProfile = () => {
-    setUserData((prev) => ({ ...prev, name: editName, photoURL: editPhoto }))
+    const fullName = `${editName} ${editSurname}`.trim()
+    setUserData((prev) => ({ ...prev, name: fullName, location: editLocation }))
     setEditProfileOpen(false)
     // TODO: Guardar en backend
   }
@@ -193,49 +228,55 @@ const PerfilPage: React.FC = () => {
       <div className="container mx-auto max-w-5xl">
         {/* Modal editar perfil */}
         {editProfileOpen && (
-          <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
-            <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-              <h2 className="text-xl font-bold mb-4">Editar perfil</h2>
-              <div className="flex flex-col items-center mb-4">
-                <Avatar className="w-24 h-24 border-4 border-white shadow-md mb-2">
-                  <AvatarImage src={editPhoto || "/placeholder.svg"} alt={editName} />
-                  <AvatarFallback className="text-2xl bg-indigo-200 text-indigo-800">
-                    {editName.split(" ").map((n) => n[0]).join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="mt-2"
-                  onChange={e => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      setEditPhoto(URL.createObjectURL(file))
-                    }
-                  }}
-                />
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+              <div className="p-6 border-b border-gray-100">
+                <h2 className="text-xl font-bold text-indigo-900">Editar perfil</h2>
+                <p className="text-sm text-gray-500 mt-1">Actualiza tu información personal</p>
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Nombre</label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={e => setEditName(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
-                />
+              
+              <div className="p-6 space-y-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Nombre</label>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={e => setEditName(e.target.value)}
+                      placeholder="Tu nombre"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Apellido</label>
+                    <input
+                      type="text"
+                      value={editSurname}
+                      onChange={e => setEditSurname(e.target.value)}
+                      placeholder="Tu apellido"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Ubicación</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={editLocation}
+                      onChange={e => setEditLocation(e.target.value)}
+                      placeholder="Ciudad, País"
+                      className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1 text-gray-400">Apellido (no editable)</label>
-                <input
-                  type="text"
-                  value={userData.name.split(" ").slice(1).join(" ")}
-                  disabled
-                  className="w-full border rounded px-3 py-2 bg-gray-100 text-gray-400"
-                />
-              </div>
-              <div className="flex gap-2 justify-end">
+              
+              <div className="p-6 border-t border-gray-100 flex gap-3 justify-end">
                 <Button variant="outline" onClick={() => setEditProfileOpen(false)}>Cancelar</Button>
-                <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleSaveProfile}>Guardar</Button>
+                <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleSaveProfile}>Guardar cambios</Button>
               </div>
             </div>
           </div>
@@ -437,7 +478,7 @@ const PerfilPage: React.FC = () => {
                               </div>
                               <div className="flex items-center gap-2">
                                 <Clock className="h-4 w-4 text-indigo-600" />
-                                <span>{event.time || 'Sin horario'}</span>
+                                <span>{formatTime(event.time)}</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Users className="h-4 w-4 text-indigo-600" />

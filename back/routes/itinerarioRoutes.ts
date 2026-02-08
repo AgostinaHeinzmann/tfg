@@ -3,16 +3,24 @@ import { Router } from "express"
 import { 
   searchItineraries, 
   getItineraryById, 
+  getItineraryDays,
   updateItinerary, 
   saveItineraryToProfile, 
   getUserItineraries, 
-  deleteItineraryFromProfile 
+  deleteItineraryFromProfile,
+  getPopularItineraries
 } from "../controllers/itinerarioController";
 
 const router = Router()
 
 // Búsqueda de itinerarios con filtros
 router.get("/", searchItineraries)
+
+// Obtener itinerarios populares (debe ir ANTES de /:id)
+router.get("/popular", getPopularItineraries)
+
+// Obtener los días de un itinerario (debe ir ANTES de /:id)
+router.get("/:id/dias", getItineraryDays)
 
 // Obtener un itinerario por ID
 router.get("/:id", getItineraryById)

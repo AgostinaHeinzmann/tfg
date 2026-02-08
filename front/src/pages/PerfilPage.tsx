@@ -23,7 +23,7 @@ import {
   UserMinus,
 } from "lucide-react"
 
-import { getUserItineraries, deleteItineraryFromProfile } from "../services/itinerarioService"
+import { getUserItineraries, deleteItineraryFromProfile, getItineraryDays } from "../services/itinerarioService"
 import { getUserEvents, unregisterUserFromEvent, deleteEvent } from "../services/eventService"
 import { auth } from "../../firebase/firebase.config"
 import { showToast } from "../lib/toast-utils"
@@ -31,6 +31,8 @@ import { loadFromLocalStorage } from "../lib/utils"
 import { Loader2 } from "lucide-react"
 import EventoDetalleModal from "./EventoDetallePage"
 import { getVerificacion } from "../services/verificacionService"
+import ItinerarioResultadoPage from "./ItinerarioResultadoPage"
+import { Dialog, DialogContent } from "../components/ui/dialog"
 
 // Función para formatear la hora correctamente
 const formatTime = (time: string | undefined): string => {
@@ -79,6 +81,48 @@ const PerfilPage: React.FC = () => {
   const [events, setEvents] = useState<any[]>([])
   const [showItineraryModal, setShowItineraryModal] = useState<{ open: boolean; itinerary: any | null }>({ open: false, itinerary: null })
   const [showEventModal, setShowEventModal] = useState<{ open: boolean; event: any | null }>({ open: false, event: null })
+  const [loadingItineraryDetails, setLoadingItineraryDetails] = useState(false)
+
+  // Mapa de coordenadas de ciudades conocidas
+  const cityCoordinates: { [key: string]: [number, number] } = {
+    'Buenos Aires': [-34.6037, -58.3816],
+    'Córdoba': [-31.4201, -64.1888],
+    'Rosario': [-32.9442, -60.6505],
+    'Mendoza': [-32.8895, -68.8458],
+    'La Plata': [-34.9205, -57.9536],
+    'San Miguel de Tucumán': [-26.8303, -65.2037],
+    'Mar del Plata': [-38.0023, -57.5575],
+    'Salta': [-24.7821, -65.4232],
+    'Santa Fe': [-31.6107, -60.6973],
+    'Bariloche': [-41.1335, -71.3103],
+    'Ushuaia': [-54.8019, -68.3030],
+    'Santiago': [-33.4489, -70.6693],
+    'Río de Janeiro': [-22.9068, -43.1729],
+    'São Paulo': [-23.5505, -46.6333],
+    'Montevideo': [-34.9011, -56.1645],
+    'Lima': [-12.0464, -77.0428],
+    'Bogotá': [4.7110, -74.0721],
+    'Madrid': [40.4168, -3.7038],
+    'Barcelona': [41.3851, 2.1734],
+    'París': [48.8566, 2.3522],
+    'Roma': [41.9028, 12.4964],
+    'Londres': [51.5074, -0.1278],
+    'Nueva York': [40.7128, -74.0060],
+  }
+
+  // Función para obtener coordenadas de una ciudad
+  const getCityCoordinates = (cityName: string): [number, number] => {
+    if (!cityName) return [-34.6037, -58.3816] // Default Buenos Aires
+    
+    // Buscar coincidencia exacta o parcial
+    const normalizedCity = cityName.toLowerCase().trim()
+    for (const [city, coords] of Object.entries(cityCoordinates)) {
+      if (city.toLowerCase() === normalizedCity || normalizedCity.includes(city.toLowerCase())) {
+        return coords
+      }
+    }
+    return [-34.6037, -58.3816] // Default
+  }
 
   // Cargar datos del perfil
   useEffect(() => {
@@ -122,7 +166,29 @@ const PerfilPage: React.FC = () => {
         // Cargar itinerarios guardados
         try {
           const itinerariesResponse: any = await getUserItineraries(userId)
-          setItineraries(itinerariesResponse.data || [])
+          // Transformar los datos del backend al formato esperado por el componente
+          // Los datos vienen anidados: item.itinerario contiene la info real
+          const transformedItineraries = (itinerariesResponse.data || []).map((item: any) => {
+            const it = item.itinerario || item // El itinerario está anidado
+            return {
+              id: it.itinerario_id || item.itinerario_id || item.id,
+              destination: it.ciudad?.nombre || it.mensaje || 'Destino',
+              days: it.duracion ? parseInt(it.duracion) : 0,
+              date: it.fecha_viaje ? new Date(it.fecha_viaje).toLocaleDateString('es-ES') : '',
+              image: it.imagen || it.itinerariosDia?.[0]?.imagen || '/placeholder.svg',
+              interests: it.intereses 
+                ? it.intereses.split(',').map((i: string) => i.trim()) 
+                : [],
+              intereses: it.intereses,
+              mensaje: it.mensaje,
+              ciudad_nombre: it.ciudad?.nombre,
+              duracion: it.duracion,
+              itinerariosDia: it.itinerariosDia || [],
+              // Mantener referencia al itinerario original
+              _original: it
+            }
+          })
+          setItineraries(transformedItineraries)
         } catch (error: any) {
           console.error("Error loading itineraries:", error)
         }
@@ -177,6 +243,108 @@ const PerfilPage: React.FC = () => {
     } catch (error: any) {
       console.error("Error deleting itinerary:", error)
       showToast.error("Error", error.message || "No se pudo eliminar el itinerario")
+    }
+  }
+
+  // Función para abrir el modal de itinerario con los días cargados
+  const handleViewItinerary = async (itinerary: any) => {
+    try {
+      setLoadingItineraryDetails(true)
+      
+      // Obtener coordenadas de la ciudad del itinerario
+      const cityName = itinerary.ciudad_nombre || itinerary.destination || ''
+      const cityCoords = getCityCoordinates(cityName)
+      
+      // Los días ya vienen en itinerariosDia desde la carga inicial
+      const daysData = itinerary.itinerariosDia || []
+      
+      // Si no hay días precargados, intentar cargarlos del backend
+      let finalDaysData = daysData
+      if (daysData.length === 0) {
+        try {
+          const itinerarioId = itinerary.id || itinerary.itinerario_id
+          const response: any = await getItineraryDays(itinerarioId)
+          finalDaysData = response.data || []
+        } catch (e) {
+          console.error('Error loading days from API:', e)
+        }
+      }
+      
+      // Agrupar actividades por día
+      const dayMap = new Map<number, any[]>()
+      finalDaysData.forEach((item: any) => {
+        const dayMatch = item.nombre?.match(/Día\s*(\d+)/i)
+        const dayNumber = dayMatch ? parseInt(dayMatch[1]) : 1
+        
+        const direccionObj = item.direccion
+        const addressString = direccionObj && typeof direccionObj === 'object'
+          ? `${direccionObj.calle || ''} ${direccionObj.numero || ''}`.trim()
+          : (typeof item.direccion === 'string' ? item.direccion : '')
+        
+        // Usar coordenadas de la ciudad como fallback
+        const activityCoords: [number, number] = [
+          item.latitud || item.lat || cityCoords[0],
+          item.longitud || item.lng || cityCoords[1]
+        ]
+        
+        const activity = {
+          id: item.itinerario_por_dia_id?.toString() || item.id?.toString(),
+          title: item.nombre?.replace(/Día\s*\d+:\s*/i, '') || item.nombre || 'Actividad',
+          description: item.descripcion || '',
+          location: item.direccion_nombre || item.nombre?.replace(/Día\s*\d+:\s*/i, '') || '',
+          address: item.direccion_completa || addressString || '',
+          coordinates: activityCoords,
+          time: item.hora || '09:00',
+          duration: item.duracion || '2 horas',
+          price: item.precio || null,
+          ticketUrl: item.enlace_oficial || item.ticketUrl,
+          imageUrl: item.imagen || '/placeholder.svg',
+          rating: item.rating || 4.5,
+          type: (item.tipo || 'atracción') as "museo" | "atracción" | "transporte" | "descanso"
+        }
+        
+        if (!dayMap.has(dayNumber)) {
+          dayMap.set(dayNumber, [])
+        }
+        dayMap.get(dayNumber)!.push(activity)
+      })
+      
+      const days = Array.from(dayMap.entries())
+        .sort(([a], [b]) => a - b)
+        .map(([dayNumber, activities]) => ({
+          day: dayNumber,
+          activities
+        }))
+      
+      // Transformar el itinerario al formato esperado por ItinerarioResultadoPage
+      const itineraryWithDays = {
+        id: itinerary.id || itinerary.itinerario_id,
+        destination: itinerary.destination || itinerary.ciudad_nombre || itinerary.mensaje || 'Destino',
+        duration: itinerary.days || (itinerary.duracion ? parseInt(itinerary.duracion) : 0),
+        interests: itinerary.interests || (itinerary.intereses ? itinerary.intereses.split(',').map((i: string) => i.trim()) : []),
+        coverImage: itinerary.image || itinerary.imagen || finalDaysData[0]?.imagen || '/placeholder.svg',
+        days,
+        coordinates: cityCoords
+      }
+      
+      setShowItineraryModal({ open: true, itinerary: itineraryWithDays })
+    } catch (error) {
+      console.error('Error loading itinerary days:', error)
+      // Si falla, mostrar el itinerario sin días
+      const cityName = itinerary.ciudad_nombre || itinerary.destination || ''
+      const cityCoords = getCityCoordinates(cityName)
+      const basicItinerary = {
+        id: itinerary.id || itinerary.itinerario_id,
+        destination: itinerary.destination || itinerary.ciudad_nombre || 'Destino',
+        duration: itinerary.days || 0,
+        interests: itinerary.interests || [],
+        coverImage: itinerary.image || itinerary.imagen || '/placeholder.svg',
+        days: [],
+        coordinates: cityCoords
+      }
+      setShowItineraryModal({ open: true, itinerary: basicItinerary })
+    } finally {
+      setLoadingItineraryDetails(false)
     }
   }
 
@@ -367,36 +535,36 @@ const PerfilPage: React.FC = () => {
 
                   {itineraries.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      {itineraries.map((itinerary) => (
+                      {itineraries.map((itinerary, index) => (
                         <Card
-                          key={itinerary.id}
+                          key={itinerary.id || `itinerary-${index}`}
                           className="overflow-hidden border-indigo-100 hover:shadow-md transition-shadow"
                         >
                           <div className="h-40 overflow-hidden">
                             <img
                               src={itinerary.image || "/placeholder.svg"}
-                              alt={itinerary.destination}
+                              alt={itinerary.mensaje || itinerary.destination}
                               className="w-full h-full object-cover"
                             />
                           </div>
                           <CardContent className="p-4">
-                            <h3 className="font-bold text-lg text-indigo-900 mb-2">{itinerary.destination}</h3>
-                            <div className="flex items-center gap-2 text-gray-600 mb-3">
+                            <h3 className="font-bold text-lg text-indigo-900 mb-2">{itinerary.mensaje || itinerary.destination}</h3>
+                            <div className="flex items-center gap-2 text-gray-600 mb-4">
                               <Clock className="h-4 w-4" />
                               <span>{itinerary.days} días</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-gray-600 mb-4">
-                              <Calendar className="h-4 w-4" />
-                              <span>{itinerary.date}</span>
                             </div>
                             <div className="flex gap-2">
                               <Button
                                 variant="outline"
                                 className="flex-1 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                                onClick={() => setShowItineraryModal({ open: true, itinerary })}
+                                onClick={() => handleViewItinerary(itinerary)}
+                                disabled={loadingItineraryDetails}
                               >
-                                <Eye className="h-4 w-4 mr-2" />
-                                Ver
+                                {loadingItineraryDetails ? (
+                                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Cargando...</>
+                                ) : (
+                                  <><Eye className="h-4 w-4 mr-2" />Ver</>
+                                )}
                               </Button>
                               <Button
                                 variant="outline"
@@ -421,21 +589,24 @@ const PerfilPage: React.FC = () => {
                         <p className="text-gray-600 mb-6 text-center max-w-md">
                           Crea tu primer itinerario personalizado para planificar tu próxima aventura
                         </p>
-                        <Button className="bg-indigo-600 hover:bg-indigo-700">Buscar itinerarios</Button>
+                        <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={() => navigate('/buscar-itinerario')}>Buscar itinerarios</Button>
                       </CardContent>
                     </Card>
                   )}
                   {/* Modal itinerario */}
-                  {showItineraryModal.open && (
-                    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
-                      <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl p-6">
-                        {/* Aquí se puede importar y mostrar ItinerarioResultadoPage */}
-                        <h2 className="text-xl font-bold mb-4">Detalle del itinerario</h2>
-                        {/* Reemplazar por <ItinerarioResultadoPage itinerary={showItineraryModal.itinerary} onClose={() => setShowItineraryModal({ open: false, itinerary: null })} /> */}
-                        <Button className="mt-4" onClick={() => setShowItineraryModal({ open: false, itinerary: null })}>Cerrar</Button>
+                  <Dialog open={showItineraryModal.open} onOpenChange={(open) => !open && setShowItineraryModal({ open: false, itinerary: null })}>
+                    <DialogContent className="max-w-3xl p-0">
+                      <div className="max-h-[80vh] overflow-y-auto px-4 py-6">
+                        {showItineraryModal.itinerary && (
+                          <ItinerarioResultadoPage
+                            itinerary={showItineraryModal.itinerary}
+                            onClose={() => setShowItineraryModal({ open: false, itinerary: null })}
+                            hideModifyButton={true}
+                          />
+                        )}
                       </div>
-                    </div>
-                  )}
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </TabsContent>
 

@@ -17,9 +17,13 @@ import {
   Utensils,
   Bus,
   Train,
+  Loader2,
 } from "lucide-react"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../components/ui/accordion"
 import Map from "../components/map"
+import { saveItineraryToProfile } from "../services/itinerarioService"
+import { showToast } from "../lib/toast-utils"
+import { loadFromLocalStorage } from "../lib/utils"
 
 // Tipos para las actividades
 type Activity = {
@@ -47,62 +51,19 @@ type ItinerarioResultadoPageProps = {
   open?: boolean
   itinerary?: any
   onClose?: () => void
+  isFromPopular?: boolean
+  hideModifyButton?: boolean
 }
 
-const ItinerarioResultadoPage: React.FC<ItinerarioResultadoPageProps> = ({ itinerary, onClose }) => {
+const ItinerarioResultadoPage: React.FC<ItinerarioResultadoPageProps> = ({ itinerary, onClose, isFromPopular = false, hideModifyButton = false }) => {
 
   const navigate = useNavigate()
-  const [isSaved, setIsSaved] = useState(false)
+  // Si viene desde el perfil (hideModifyButton=true), ya está guardado
+  const [isSaved, setIsSaved] = useState(hideModifyButton)
+  const [isSaving, setIsSaving] = useState(false)
 
-  // Datos de ejemplo para el itinerario generado
-  const itineraryData = itinerary || {
-    destination: "París, Francia",
-    duration: 5,
-    interests: ["Museos", "Arte", "Historia"],
-    coverImage: "/imagenes/paris.avif?height=400&width=800",
-    coordinates: [48.8566, 2.3522] as [number, number], // París
-    days: [
-      {
-        day: 1,
-        activities: [
-          {
-            id: "1",
-            title: "Museo del Louvre",
-            description:
-              "El museo de arte más grande del mundo y un monumento histórico en París. Hogar de miles de obras de arte, incluyendo la Mona Lisa y la Venus de Milo.",
-            location: "Palais Royal, Musée du Louvre",
-            address: "Rue de Rivoli, 75001 París, Francia",
-            coordinates: [48.8606, 2.3376] as [number, number],
-            time: "09:00 - 12:30",
-            duration: "3.5 horas",
-            price: 17,
-            ticketUrl: "https://www.louvre.fr/en/visit",
-            imageUrl: "/imagenes/louvre.jpg?height=200&width=300",
-            rating: 4.8,
-            type: "museo" as const,
-          },
-          {
-            id: "2",
-            title: "Museo de Orsay",
-            description:
-              "Albergado en la antigua estación de Orsay, este museo contiene principalmente arte francés de 1848 a 1914, incluyendo obras maestras impresionistas y postimpresionistas.",
-            location: "Musée d'Orsay",
-            address: "1 Rue de la Légion d'Honneur, 75007 París, Francia",
-            coordinates: [48.8599, 2.3266] as [number, number],
-            time: "15:00 - 18:00",
-            duration: "3 horas",
-            price: 16,
-            priceRange: "€€" as const,
-            ticketUrl: "https://www.musee-orsay.fr/en",
-            imageUrl: "/imagenes/orsay.avif?height=200&width=300",
-            rating: 4.7,
-            type: "museo" as const,
-          },
-        ],
-      },
-      // Más días del itinerario...
-    ] as ItineraryDay[],
-  }
+  // Datos del itinerario recibido por props
+  const itineraryData = itinerary || null
 
   // Función para renderizar el icono según el tipo de actividad
   const getActivityIcon = (type: Activity["type"]) => {
@@ -120,9 +81,38 @@ const ItinerarioResultadoPage: React.FC<ItinerarioResultadoPageProps> = ({ itine
     }
   }
 
-  const handleSaveItinerary = () => {
-    setIsSaved(!isSaved)
-    // Aquí iría la lógica para guardar el itinerario
+  const handleSaveItinerary = async () => {
+    if (isSaved) {
+      showToast.info("Ya guardado", "Este itinerario ya está en tu perfil")
+      return
+    }
+
+    try {
+      setIsSaving(true)
+      const userLocal = loadFromLocalStorage("userData")
+      
+      if (!userLocal || !userLocal.usuario_id) {
+        showToast.warning("Inicia sesión", "Necesitas iniciar sesión para guardar itinerarios")
+        navigate("/login")
+        return
+      }
+
+      const itinerarioId = itinerary.id || itinerary.itinerario_id
+      await saveItineraryToProfile(itinerarioId, userLocal.usuario_id)
+      
+      setIsSaved(true)
+      showToast.success("Itinerario guardado", "El itinerario se guardó en tu perfil")
+    } catch (error: any) {
+      console.error("Error saving itinerary:", error)
+      if (error.response?.status === 409) {
+        setIsSaved(true)
+        showToast.info("Ya guardado", "Este itinerario ya está en tu perfil")
+      } else {
+        showToast.error("Error", error.response?.data?.message || "No se pudo guardar el itinerario")
+      }
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   if (!itinerary) {
@@ -169,14 +159,6 @@ const ItinerarioResultadoPage: React.FC<ItinerarioResultadoPageProps> = ({ itine
           >
             <Bookmark className={`h-4 w-4 mr-2 ${isSaved ? "fill-current" : ""}`} />
             {isSaved ? "Guardado" : "Guardar itinerario"}
-          </Button>
-          <Button variant="outline">
-            <Share2 className="h-4 w-4 mr-2" />
-            Compartir
-          </Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Descargar PDF
           </Button>
         </div>
 
@@ -321,89 +303,32 @@ const ItinerarioResultadoPage: React.FC<ItinerarioResultadoPageProps> = ({ itine
           <div className="p-8 text-center text-gray-500">Este itinerario no tiene actividades detalladas.</div>
         )}
 
-        {/* Mapa general */}
-        <Card className="border-indigo-100 shadow-md mb-8">
-          <CardHeader>
-            <CardTitle>Mapa del itinerario</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Map
-              center={itineraryData.coordinates}
-              zoom={13}
-              height="400px"
-              address={itineraryData.destination}
-              title={`Itinerario de ${itineraryData.destination}`}
-              showGoogleMapsButton={true}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Recomendaciones adicionales */}
-        <Card className="border-indigo-100 shadow-md mb-8">
-          <CardHeader>
-            <CardTitle>Recomendaciones adicionales</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <h3 className="font-medium text-indigo-900">Transporte</h3>
-              <p className="text-gray-700">
-                Para moverte por París, te recomendamos comprar un pase de transporte público (Paris Visite) que te
-                permitirá usar el metro, autobuses y RER. Costo aproximado: 38.35€ para 5 días (zonas 1-3).
-              </p>
-              <div className="flex gap-2 mt-2">
-                <Button variant="outline" size="sm" className="text-indigo-700 bg-transparent" asChild>
-                  <Link to="https://www.ratp.fr/en/titres-et-tarifs/paris-visite-travel-pass" target="_blank">
-                    <Train className="h-3.5 w-3.5 mr-1.5" />
-                    Comprar Paris Visite
-                  </Link>
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2 pt-4 border-t border-gray-100">
-              <h3 className="font-medium text-indigo-900">Pases de museos</h3>
-              <p className="text-gray-700">
-                Considera comprar el Paris Museum Pass, que te dará acceso a más de 50 museos y monumentos, incluyendo
-                muchos de los que visitarás en este itinerario. Costo: 85€ para 6 días.
-              </p>
-              <div className="flex gap-2 mt-2">
-                <Button variant="outline" size="sm" className="text-indigo-700 bg-transparent" asChild>
-                  <Link to="https://www.parismuseumpass.fr/en" target="_blank">
-                    <Info className="h-3.5 w-3.5 mr-1.5" />
-                    Paris Museum Pass
-                  </Link>
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2 pt-4 border-t border-gray-100">
-              <h3 className="font-medium text-indigo-900">Consejos prácticos</h3>
-              <ul className="list-disc pl-5 space-y-1 text-gray-700">
-                <li>Muchos museos en París son gratuitos el primer domingo de cada mes.</li>
-                <li>
-                  La mayoría de los museos están cerrados los lunes o martes, verifica los horarios antes de tu visita.
-                </li>
-                <li>
-                  Reserva tus entradas con anticipación para evitar largas filas, especialmente en temporada alta.
-                </li>
-                <li>Lleva contigo una botella de agua reutilizable, muchos museos tienen fuentes de agua potable.</li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Botones de acción */}
         <div className="flex flex-wrap gap-3 justify-end">
-          <Button
-            variant="ghost"
-            className="mb-6 text-indigo-700"
-            onClick={onClose}
-          >
-            Modificar búsqueda
-          </Button>
-          <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleSaveItinerary}>
-            {isSaved ? "Guardado en mi perfil" : "Guardar en mi perfil"}
-          </Button>
+          {!isFromPopular && !hideModifyButton && onClose && (
+            <Button
+              variant="ghost"
+              className="mb-6 text-indigo-700"
+              onClick={onClose}
+            >
+              Modificar búsqueda
+            </Button>
+          )}
+          {!hideModifyButton && (
+            <Button 
+              className="bg-indigo-600 hover:bg-indigo-700" 
+              onClick={handleSaveItinerary}
+              disabled={isSaving || isSaved}
+            >
+              {isSaving ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando...</>
+              ) : isSaved ? (
+                <><Bookmark className="h-4 w-4 mr-2 fill-current" />Guardado en mi perfil</>
+              ) : (
+                <><Bookmark className="h-4 w-4 mr-2" />Guardar en mi perfil</>
+              )}
+            </Button>
+          )}
         </div>
       </div>
     </div>

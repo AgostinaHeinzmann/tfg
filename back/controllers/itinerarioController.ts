@@ -8,6 +8,57 @@ import Pais from "../models/Pais";
 import Direccion from "../models/Direccion";
 import { User } from "../models/User";
 
+export const getPopularItineraries = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const limit = 3; 
+
+    const itineraries = await Itinerary.findAll({
+      where: {
+        itinerarios_populares: true
+      },
+      include: [
+        {
+          model: Ciudad,
+          as: 'ciudad',
+          required: true,
+          include: [
+            {
+              model: Pais,
+              as: 'pais',
+              required: false
+            }
+          ]
+        },
+        {
+          model: User,
+          as: 'usuario',
+          attributes: { exclude: ['contrasena'] },
+          required: false
+        }
+      ],
+      order: Sequelize.literal('RANDOM()'),
+      limit: limit
+    });
+
+    res.status(200).json({
+      success: true,
+      data: itineraries,
+      count: itineraries.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching popular itineraries:', error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching popular itineraries",
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
 export const searchItineraries = async (
   req: Request,
   res: Response
@@ -18,25 +69,45 @@ export const searchItineraries = async (
     // Construir el where clause
     let whereClause: any = {};
 
-    // Filtrar por ciudad (destino)
+    // Filtrar por ciudad (destino) - busca en nombre de ciudad o país
     if (destination && destination !== '') {
-      whereClause['$ciudad.nombre$'] = { [Op.iLike]: `%${destination}%` };
-    }
-
-    // Filtrar por duración
-    if (duration && duration !== '') {
-      // Intentar buscar por coincidencia parcial en el texto convertido
-      whereClause[Op.and] = [
-        ...(whereClause[Op.and] || []),
-        Sequelize.where(Sequelize.cast(Sequelize.col('duracion'), 'text'), { [Op.iLike]: `%${(duration as string).split(' ')[0]}%` })
+      whereClause[Op.or] = [
+        { '$ciudad.nombre$': { [Op.iLike]: `%${destination}%` } },
+        { '$ciudad.pais.nombre$': { [Op.iLike]: `%${destination}%` } }
       ];
     }
 
-    // Filtrar por intereses
+    // Filtrar por duración (busca itinerarios con duración <= a la solicitada o cercana)
+    if (duration && duration !== '') {
+      const durationNum = parseInt(duration as string, 10);
+      if (!isNaN(durationNum)) {
+        // Buscar por el número de días (la duración puede ser "5", "5 days", "5 días", etc.)
+        whereClause[Op.and] = [
+          ...(whereClause[Op.and] || []),
+          Sequelize.where(
+            Sequelize.cast(
+              Sequelize.fn('REGEXP_REPLACE', Sequelize.col('duracion'), '[^0-9]', '', 'g'),
+              'INTEGER'
+            ),
+            { [Op.lte]: durationNum }
+          )
+        ];
+      }
+    }
+
+    // Filtrar por intereses (busca coincidencias parciales)
     if (interests && interests !== '') {
       const interestsArray = (interests as string).split(",").filter(i => i.trim() !== '');
       if (interestsArray.length > 0) {
-        whereClause.intereses = { [Op.or]: interestsArray.map(i => ({ [Op.iLike]: `%${i.trim()}%` })) };
+        // Buscar itinerarios que contengan AL MENOS uno de los intereses
+        whereClause[Op.and] = [
+          ...(whereClause[Op.and] || []),
+          {
+            [Op.or]: interestsArray.map(i => ({
+              intereses: { [Op.iLike]: `%${i.trim()}%` }
+            }))
+          }
+        ];
       }
     }
 
@@ -46,30 +117,45 @@ export const searchItineraries = async (
       include: [
         {
           model: Ciudad,
-          required: !!destination,
+          as: 'ciudad',
+          required: true,
           include: [
             {
               model: Pais,
+              as: 'pais',
               required: false
             }
           ]
         },
         {
           model: ItinerarioDia,
+          as: 'itinerariosDia',
           required: false,
           include: [
             {
               model: Direccion,
+              as: 'direccion',
               required: false
             }
           ]
+        },
+        {
+          model: User,
+          as: 'usuario',
+          attributes: { exclude: ['contrasena'] },
+          required: false
         }
+      ],
+      order: [
+        ['itinerarios_populares', 'DESC'], // Primero los populares
+        ['itinerario_id', 'DESC']
       ]
     });
 
     res.status(200).json({
       success: true,
-      data: itineraries
+      data: itineraries,
+      count: itineraries.length
     });
 
   } catch (error) {
@@ -78,6 +164,56 @@ export const searchItineraries = async (
       res.status(500).json({
         success: false,
         message: "Error searching itineraries",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+};
+
+export const getItineraryDays = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // Validar que el id sea un número válido
+    if (!id || isNaN(Number(id))) {
+      res.status(400).json({ success: false, message: "Invalid itinerary ID" });
+      return;
+    }
+
+    // Verificar que el itinerario exista
+    const itinerary = await Itinerary.findByPk(Number(id));
+    if (!itinerary) {
+      res.status(404).json({ success: false, message: "Itinerary not found" });
+      return;
+    }
+
+    // Obtener los días del itinerario
+    const days = await ItinerarioDia.findAll({
+      where: { itinerario_id: Number(id) },
+      include: [
+        {
+          model: Direccion,
+          as: 'direccion'
+        }
+      ],
+      order: [['itinerario_por_dia_id', 'ASC']]
+    });
+
+    res.status(200).json({
+      success: true,
+      data: days,
+      count: days.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching itinerary days:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: "Error fetching itinerary days",
         error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
@@ -101,22 +237,27 @@ export const getItineraryById = async (
       include: [
         {
           model: Ciudad,
+          as: 'ciudad',
           include: [
             {
-              model: Pais
+              model: Pais,
+              as: 'pais'
             }
           ]
         },
         {
           model: ItinerarioDia,
+          as: 'itinerariosDia',
           include: [
             {
-              model: Direccion
+              model: Direccion,
+              as: 'direccion'
             }
           ]
         },
         {
           model: User,
+          as: 'usuario',
           attributes: {
             exclude: ['contrasena']
           }
@@ -331,9 +472,22 @@ export const getUserItineraries = async (
       ]
     });
 
+    // Log para debugging
+    console.log('userItineraries raw:', JSON.stringify(userItineraries.map((ui: any) => ui.get({ plain: true })), null, 2));
+
+    // Transformar la respuesta para que sea más amigable
+    const formattedItineraries = userItineraries.map((ui: any) => {
+      const plain = ui.get({ plain: true });
+      return {
+        usuario_id: plain.usuario_id,
+        itinerario_id: plain.itinerario_id,
+        itinerario: plain.itinerario || plain.Itinerary || null
+      };
+    });
+
     res.status(200).json({
       success: true,
-      data: userItineraries
+      data: formattedItineraries
     });
 
   } catch (error) {

@@ -17,6 +17,35 @@ export interface UpdateItineraryData {
   enlace_oficial?: string
 }
 
+export interface CreateItineraryData {
+  destination: string
+  duration: number
+  interests: string[]
+  description?: string
+  coverImage?: string
+  days?: ItineraryDay[]
+}
+
+export interface ItineraryActivity {
+  title: string
+  description: string
+  location: string
+  address: string
+  coordinates: [number, number]
+  time: string
+  duration: string
+  price?: number | null
+  ticketUrl?: string
+  imageUrl?: string
+  rating?: number
+  type: "museo" | "atracción" | "transporte" | "descanso"
+}
+
+export interface ItineraryDay {
+  day: number
+  activities: ItineraryActivity[]
+}
+
 /**
  * Buscar itinerarios con filtros
  */
@@ -103,3 +132,41 @@ export const deleteItineraryFromProfile = async (usuarioId: number, itinerarioId
   }
 }
 
+/**
+ * Crear un nuevo itinerario
+ */
+export const createItinerary = async (itineraryData: CreateItineraryData) => {
+  try {
+    const response = await client.post('/itinerario', itineraryData)
+    return response.data
+  } catch (error: any) {
+    console.error('Error creating itinerary:', error)
+    throw error
+  }
+}
+
+/**
+ * Obtener itinerarios populares/recomendados
+ */
+export const getPopularItineraries = async (limit: number = 6) => {
+  try {
+    const response = await client.get(`/itinerario/popular?limit=${limit}`)
+    return response.data
+  } catch (error: any) {
+    console.error('Error fetching popular itineraries:', error)
+    throw error
+  }
+}
+
+/**
+ * Obtener los días y actividades de un itinerario
+ */
+export const getItineraryDays = async (itinerarioId: number) => {
+  try {
+    const response = await client.get(`/itinerario/${itinerarioId}/dias`)
+    return response.data
+  } catch (error: any) {
+    console.error('Error fetching itinerary days:', error)
+    throw error
+  }
+}

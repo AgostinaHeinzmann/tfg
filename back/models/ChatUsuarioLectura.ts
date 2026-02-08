@@ -9,19 +9,26 @@ import {
   AllowNull,
   Default,
   BelongsTo,
+  Unique,
 } from "sequelize-typescript"
 import Event from "./Event"
 import { User } from "./User"
 
 @Table({
-  tableName: "mensaje_evento",
+  tableName: "chat_usuario_lectura",
   timestamps: false,
+  indexes: [
+    {
+      unique: true,
+      fields: ['evento_id', 'usuario_id']
+    }
+  ]
 })
-export class MensajeEvent extends Model<MensajeEvent> {
+export class ChatUsuarioLectura extends Model<ChatUsuarioLectura> {
   @PrimaryKey
   @AutoIncrement
   @Column(DataType.INTEGER)
-  mensaje_evento_id!: number
+  chat_usuario_lectura_id!: number
 
   @ForeignKey(() => Event)
   @AllowNull(false)
@@ -29,18 +36,14 @@ export class MensajeEvent extends Model<MensajeEvent> {
   evento_id!: number
 
   @ForeignKey(() => User)
-  @AllowNull(true)
-  @Column(DataType.INTEGER)
-  usuario_id?: number | null
-
   @AllowNull(false)
-  @Column(DataType.TEXT)
-  mensaje!: string
+  @Column(DataType.INTEGER)
+  usuario_id!: number
 
   @Default(DataType.NOW)
   @AllowNull(false)
   @Column(DataType.DATE)
-  fecha_creacion!: Date
+  ultima_lectura!: Date
 
   // Relaciones
   @BelongsTo(() => Event, { foreignKey: 'evento_id', targetKey: 'evento_id' })
@@ -50,4 +53,4 @@ export class MensajeEvent extends Model<MensajeEvent> {
   usuario?: User
 }
 
-export default MensajeEvent
+export default ChatUsuarioLectura

@@ -40,6 +40,9 @@ export class InscripcionEvent extends Model<InscripcionEvent> {
 
   @BelongsTo(() => Event)
   evento?: Event
+
+  @BelongsTo(() => User, { foreignKey: 'usuario_id', targetKey: 'usuario_id' })
+  usuario?: User
 }
 
 export default InscripcionEvent

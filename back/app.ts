@@ -11,6 +11,7 @@ import filtrosRoutes from "./routes/filtrosRoutes"
 import itinerarioRoutes from "./routes/itinerarioRoutes"
 import feedRoutes from "./routes/feedRoutes"
 import verificacionIdentidadRoutes from "./routes/verificacionIdentidadRoutes"
+import chatRoutes from "./routes/chatRoutes"
 
 dotenv.config();
 
@@ -45,6 +46,7 @@ app.use("/filtros", filtrosRoutes)
 app.use("/itinerario", itinerarioRoutes)
 app.use("/feed", feedRoutes)
 app.use("/verificacion", verificacionIdentidadRoutes)
+app.use("/chat", chatRoutes)
 
 
 const PORT = process.env.PORT || 8080;

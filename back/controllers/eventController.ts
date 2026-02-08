@@ -11,6 +11,7 @@ import MensajeEvent from "../models/MensajeEvent";
 import InscripcionEvent from "../models/InscripcionEvent";
 import EventUser from "../models/EventUser";
 import { User } from "../models/User";
+import ChatUsuarioLectura from "../models/ChatUsuarioLectura";
 
 // Función para obtener rango de fechas según el filtro
 const getDateRange = (dateFilter: string): { start: Date; end: Date } | null => {
@@ -558,6 +559,16 @@ export const deleteEvent = async (
 
     // Eliminar mensajes relacionados
     await MensajeEvent.destroy({
+      where: { evento_id: Number(id) }
+    });
+
+    // Eliminar registros de lectura del chat
+    await ChatUsuarioLectura.destroy({
+      where: { evento_id: Number(id) }
+    });
+
+    // Eliminar relaciones usuario-evento
+    await EventUser.destroy({
       where: { evento_id: Number(id) }
     });
 

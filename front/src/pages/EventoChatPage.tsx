@@ -176,16 +176,13 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
   const formatLocation = (chatInfo: ChatInfo | null): string => {
     if (!chatInfo?.evento) return "Ubicación no especificada"
     
-    // Primero intentar con ubicacion (string directo del backend)
+    // Usar ubicacion o ciudad del backend
     if (chatInfo.evento.ubicacion) {
       return chatInfo.evento.ubicacion
     }
     
-    // Fallback a direccion (objeto estructurado)
-    if (chatInfo.evento.direccion) {
-      const { calle, numero, ciudad, pais } = chatInfo.evento.direccion
-      const parts = [calle, numero, ciudad, pais].filter(Boolean)
-      return parts.join(", ") || "Ubicación no especificada"
+    if (chatInfo.evento.ciudad) {
+      return chatInfo.evento.ciudad
     }
     
     return "Ubicación no especificada"

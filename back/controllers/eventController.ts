@@ -327,13 +327,6 @@ export const createEvent = async (
       imagen_mime_type: imagen_mime_type || null
     } as any);
 
-    // Crear automáticamente un mensaje inicial en el chat del evento
-    await MensajeEvent.create({
-      evento_id: newEvent.evento_id,
-      mensaje: `Chat iniciado para el evento: ${nombre_evento}`,
-      fecha_creacion: new Date()
-    } as any);
-
     // Crear los intereses asociados al evento si se proporcionan
     // Normalizar intereses: puede venir como array o como string separado por comas
     let interesesArray: string[] = [];

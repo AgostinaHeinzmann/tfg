@@ -92,9 +92,10 @@ const BuscarItinerarioPage: React.FC = () => {
           return {
             id: item.itinerario_id || item.id,
             itinerario_id: item.itinerario_id || item.id,
-            destination: cityName || item.mensaje || item.destination || 'Destino',
+            // Usar mensaje como título principal del itinerario
+            destination: item.mensaje || cityName || item.destination || 'Destino',
             duration: item.duracion ? parseInt(item.duracion) : item.duration || 0,
-            description: item.resumen_itinerario || item.mensaje || item.description || '',
+            description: item.resumen_itinerario || item.description || '',
             interests: item.intereses 
               ? item.intereses.split(',').map((i: string) => i.trim()) 
               : (item.interests || item.tags || []),
@@ -230,16 +231,24 @@ const BuscarItinerarioPage: React.FC = () => {
       const response: any = await searchItineraries(filters)
       
       // Transformar los datos de la API al formato esperado por el componente
-      const transformedResults = (response.data || []).map((item: any) => ({
-        id: item.itinerario_id,
-        destination: item.ciudad_nombre || item.mensaje || 'Destino',
-        duration: item.duracion ? parseInt(item.duracion) : duration[0],
-        description: item.resumen_itinerario || item.mensaje || '',
-        interests: item.intereses ? item.intereses.split(',').map((i: string) => i.trim()) : [],
-        coverImage: item.imagen || item.coverImage || '/placeholder.svg',
-        // Mantener los datos originales por si se necesitan
-        ...item
-      }))
+      const transformedResults = (response.data || []).map((item: any) => {
+        const cityName = item.ciudad?.nombre || item.ciudad_nombre || ''
+        return {
+          id: item.itinerario_id,
+          itinerario_id: item.itinerario_id,
+          // Usar mensaje como título principal del itinerario
+          destination: item.mensaje || cityName || 'Destino',
+          duration: item.duracion ? parseInt(item.duracion) : duration[0],
+          description: item.resumen_itinerario || item.description || '',
+          interests: item.intereses ? item.intereses.split(',').map((i: string) => i.trim()) : [],
+          coverImage: item.imagen || item.coverImage || '/placeholder.svg',
+          ciudad_nombre: cityName,
+          mensaje: item.mensaje,
+          coordinates: getCityCoordinates(cityName),
+          // Mantener los datos originales por si se necesitan
+          ...item
+        }
+      })
       
       setSearchResults(transformedResults)
 

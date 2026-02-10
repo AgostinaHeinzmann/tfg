@@ -69,6 +69,10 @@ export class Itinerary extends Model<Itinerary> {
   @Column(DataType.TEXT)
   enlace_oficial?: string | null
 
+  @AllowNull(true)
+  @Column(DataType.TEXT)
+  imagen?: string | null
+
   // Associations
   @BelongsTo(() => Ciudad, { foreignKey: 'ciudad_id', targetKey: 'ciudad_id' })
   ciudad?: Ciudad

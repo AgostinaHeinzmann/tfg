@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -25,12 +25,15 @@ import {
   UserPlus,
 } from "lucide-react";
 import { auth } from "../../../firebase/firebase.config";
+import { getUnreadCount } from "../../services/chatService";
+
+const NOTIFICATION_POLLING_INTERVAL = 30000; // 30 segundos
 
 const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [notifications] = useState(3);
+  const [notifications, setNotifications] = useState(0);
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -39,6 +42,28 @@ const Navbar: React.FC = () => {
     });
     return () => unsubscribe();
   }, []);
+
+  // Fetch unread notifications count
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      const count = await getUnreadCount();
+      setNotifications(count);
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+    }
+  }, [user]);
+
+  // Initial fetch and polling for notifications
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, NOTIFICATION_POLLING_INTERVAL);
+      return () => clearInterval(interval);
+    } else {
+      setNotifications(0);
+    }
+  }, [user, fetchNotifications]);
 
   // Detectar tipo de página
   const isAuthPage = location.pathname === "/login" || location.pathname === "/registro";

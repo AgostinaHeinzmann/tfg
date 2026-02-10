@@ -472,9 +472,6 @@ export const getUserItineraries = async (
       ]
     });
 
-    // Log para debugging
-    console.log('userItineraries raw:', JSON.stringify(userItineraries.map((ui: any) => ui.get({ plain: true })), null, 2));
-
     // Transformar la respuesta para que sea más amigable
     const formattedItineraries = userItineraries.map((ui: any) => {
       const plain = ui.get({ plain: true });

@@ -32,7 +32,7 @@ import { Loader2 } from "lucide-react"
 import EventoDetalleModal from "./EventoDetallePage"
 import { getVerificacion } from "../services/verificacionService"
 import ItinerarioResultadoPage from "./ItinerarioResultadoPage"
-import { Dialog, DialogContent } from "../components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../components/ui/dialog"
 
 // Función para formatear la hora correctamente
 const formatTime = (time: string | undefined): string => {
@@ -82,6 +82,7 @@ const PerfilPage: React.FC = () => {
   const [showItineraryModal, setShowItineraryModal] = useState<{ open: boolean; itinerary: any | null }>({ open: false, itinerary: null })
   const [showEventModal, setShowEventModal] = useState<{ open: boolean; event: any | null }>({ open: false, event: null })
   const [loadingItineraryDetails, setLoadingItineraryDetails] = useState(false)
+  const [deleteEventDialog, setDeleteEventDialog] = useState<{ open: boolean; eventId: number | null; eventTitle: string }>({ open: false, eventId: null, eventTitle: '' })
 
   // Mapa de coordenadas de ciudades conocidas
   const cityCoordinates: { [key: string]: [number, number] } = {
@@ -141,7 +142,17 @@ const PerfilPage: React.FC = () => {
         let userId = null;
 
         if (userLocal) {
-          setUserData((prev) => ({ ...prev, ...userLocal }))
+          // Calcular fecha de registro real si existe
+          let joinDate = "Junio 2025" // fallback
+          if (userLocal.fecha_registro || userLocal.createdAt || userLocal.created_at) {
+            const regDate = new Date(userLocal.fecha_registro || userLocal.createdAt || userLocal.created_at)
+            if (!isNaN(regDate.getTime())) {
+              joinDate = regDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+              // Capitalizar primera letra
+              joinDate = joinDate.charAt(0).toUpperCase() + joinDate.slice(1)
+            }
+          }
+          setUserData((prev) => ({ ...prev, ...userLocal, joinDate }))
           const nameParts = (userLocal.name || userLocal.displayName || userData.name).split(" ")
           setEditName(nameParts[0] || "")
           setEditSurname(nameParts.slice(1).join(" ") || "")
@@ -359,15 +370,18 @@ const PerfilPage: React.FC = () => {
     }
   }
 
-  const handleDeleteEvent = async (eventId: number) => {
-    if (!confirm("¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede deshacer.")) {
-      return
-    }
+  const handleDeleteEventConfirm = (eventId: number, eventTitle: string) => {
+    setDeleteEventDialog({ open: true, eventId, eventTitle })
+  }
+
+  const handleDeleteEvent = async () => {
+    if (!deleteEventDialog.eventId) return
 
     try {
-      await deleteEvent(eventId)
-      setEvents(events.filter(e => e.id !== eventId))
+      await deleteEvent(deleteEventDialog.eventId)
+      setEvents(events.filter(e => e.id !== deleteEventDialog.eventId))
       showToast.success("Evento eliminado", "El evento se eliminó correctamente")
+      setDeleteEventDialog({ open: false, eventId: null, eventTitle: '' })
     } catch (error: any) {
       console.error("Error deleting event:", error)
       showToast.error("Error", error.response?.data?.message || "No se pudo eliminar el evento")
@@ -677,7 +691,7 @@ const PerfilPage: React.FC = () => {
                                   <Button 
                                     variant="outline" 
                                     className="border-red-200 text-red-700 hover:bg-red-50"
-                                    onClick={() => handleDeleteEvent(event.id)}
+                                    onClick={() => handleDeleteEventConfirm(event.id, event.title)}
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
@@ -732,6 +746,42 @@ const PerfilPage: React.FC = () => {
                       onEventUpdate={reloadEvents}
                     />
                   )}
+
+                  {/* Modal confirmar eliminación de evento */}
+                  <Dialog open={deleteEventDialog.open} onOpenChange={(open) => !open && setDeleteEventDialog({ open: false, eventId: null, eventTitle: '' })}>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle className="text-red-600 flex items-center gap-2">
+                          <Trash2 className="h-5 w-5" />
+                          Eliminar evento
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-600">
+                          Esta acción no se puede deshacer
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="py-4">
+                        <p className="text-gray-700">
+                          ¿Estás seguro de que quieres eliminar <span className="font-semibold">"{deleteEventDialog.eventTitle}"</span>?
+                        </p>
+                      </div>
+                      <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                          variant="outline"
+                          onClick={() => setDeleteEventDialog({ open: false, eventId: null, eventTitle: '' })}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={handleDeleteEvent}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Eliminar evento
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </TabsContent>
             </Tabs>

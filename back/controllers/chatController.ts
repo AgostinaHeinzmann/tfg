@@ -194,32 +194,25 @@ export const getUserChats = async (
             apellido: event.usuario.apellido,
             imagen_perfil_id: event.usuario.imagen_perfil_id
           } : null,
-          isOwner,
+          // Nombres en snake_case para compatibilidad con frontend
+          es_creador: isOwner,
           role: isOwner ? 'Anfitrión' : 'Participante',
-          unreadCount,
-          lastMessage: lastMessage ? {
-            mensaje_evento_id: lastMessage.mensaje_evento_id,
-            mensaje: lastMessage.mensaje,
-            fecha_creacion: lastMessage.fecha_creacion,
-            usuario: lastMessage.usuario ? {
-              usuario_id: lastMessage.usuario.usuario_id,
-              nombre: lastMessage.usuario.nombre,
-              apellido: lastMessage.usuario.apellido
-            } : null
-          } : null
+          unread_count: unreadCount,
+          ultimo_mensaje: lastMessage?.mensaje || null,
+          ultimo_mensaje_fecha: lastMessage?.fecha_creacion || null
         };
       })
     );
 
     // Ordenar por último mensaje (más reciente primero)
     chatsWithUnread.sort((a, b) => {
-      const dateA = a.lastMessage?.fecha_creacion ? new Date(a.lastMessage.fecha_creacion).getTime() : 0;
-      const dateB = b.lastMessage?.fecha_creacion ? new Date(b.lastMessage.fecha_creacion).getTime() : 0;
+      const dateA = a.ultimo_mensaje_fecha ? new Date(a.ultimo_mensaje_fecha).getTime() : 0;
+      const dateB = b.ultimo_mensaje_fecha ? new Date(b.ultimo_mensaje_fecha).getTime() : 0;
       return dateB - dateA;
     });
 
     // Calcular total de mensajes no leídos
-    const totalUnread = chatsWithUnread.reduce((sum, chat) => sum + chat.unreadCount, 0);
+    const totalUnread = chatsWithUnread.reduce((sum, chat) => sum + chat.unread_count, 0);
 
     res.status(200).json({
       success: true,
@@ -334,18 +327,18 @@ export const getChatMessages = async (
     // Invertir para mostrar en orden cronológico
     messages.reverse();
 
-    // Formatear mensajes
+    // Formatear mensajes - usar nombres compatibles con frontend
     const formattedMessages = messages.map(msg => ({
-      mensaje_evento_id: msg.mensaje_evento_id,
+      id: msg.mensaje_evento_id,
+      usuario_id: msg.usuario_id,
       mensaje: msg.mensaje,
       fecha_creacion: msg.fecha_creacion,
       isOwnMessage: usuario_id ? msg.usuario_id === usuario_id : false,
       usuario: msg.usuario ? {
-        usuario_id: msg.usuario.usuario_id,
+        id: msg.usuario.usuario_id,
         nombre: msg.usuario.nombre,
         apellido: msg.usuario.apellido,
-        imagen_perfil_id: msg.usuario.imagen_perfil_id,
-        isOwner: msg.usuario.usuario_id === event.usuario_id
+        imagen_perfil: msg.usuario.imagen_perfil_id || null
       } : null
     }));
 
@@ -353,20 +346,20 @@ export const getChatMessages = async (
     const participants = [
       // Creador del evento
       ...(event.usuario ? [{
-        usuario_id: event.usuario.usuario_id,
+        id: event.usuario.usuario_id,
         nombre: event.usuario.nombre,
         apellido: event.usuario.apellido,
-        imagen_perfil_id: event.usuario.imagen_perfil_id,
+        imagen_perfil: event.usuario.imagen_perfil_id || null,
         role: 'Anfitrión' as const
       }] : []),
       // Participantes inscritos
       ...(event.inscripciones?.map(i => ({
-        usuario_id: i.usuario?.usuario_id,
+        id: i.usuario?.usuario_id,
         nombre: i.usuario?.nombre,
         apellido: i.usuario?.apellido,
-        imagen_perfil_id: i.usuario?.imagen_perfil_id,
+        imagen_perfil: i.usuario?.imagen_perfil_id || null,
         role: 'Participante' as const
-      })).filter(p => p.usuario_id && p.usuario_id !== event.usuario_id) || [])
+      })).filter(p => p.id && p.id !== event.usuario_id) || [])
     ];
 
     // Información del evento para el detalle
@@ -386,11 +379,12 @@ export const getChatMessages = async (
       ciudad: (event.direccion as any)?.ciudad?.nombre || null,
       cant_participantes: event.cant_participantes,
       participantes_actuales: (event.inscripciones?.length || 0) + 1, // +1 por el creador
+      creador_id: event.usuario_id, // ID del creador para verificar badge de anfitrión
       creador: event.usuario ? {
-        usuario_id: event.usuario.usuario_id,
+        id: event.usuario.usuario_id,
         nombre: event.usuario.nombre,
         apellido: event.usuario.apellido,
-        imagen_perfil_id: event.usuario.imagen_perfil_id
+        imagen_perfil: event.usuario.imagen_perfil_id || null
       } : null
     };
 

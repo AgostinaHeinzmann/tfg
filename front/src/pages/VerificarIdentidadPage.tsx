@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -42,11 +43,13 @@ interface MRZDate {
 }
 
 const VerificarIdentidadPage: React.FC = () => {
+  const navigate = useNavigate();
   const barcodeScannerViewRef = useRef(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showScanner, setShowScanner] = useState(false);
   const barcodeScannerRef = useRef<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isScanningImage, setIsScanningImage] = useState(false);
   const [verification, setVerification] = useState<boolean>(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
@@ -118,7 +121,7 @@ const VerificarIdentidadPage: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setIsProcessing(true);
+    setIsScanningImage(true);
     try {
       const mrzScanner = new MRZScanner({
         license: import.meta.env.VITE_DYNAMSOFT_LICENSE_MRZ,
@@ -160,7 +163,7 @@ const VerificarIdentidadPage: React.FC = () => {
       );
       setShowErrorModal(true);
     } finally {
-      setIsProcessing(false);
+      setIsScanningImage(false);
       // Limpiar el input para permitir subir el mismo archivo nuevamente
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -182,7 +185,11 @@ const VerificarIdentidadPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white py-12 px-4">
       <div className="container mx-auto max-w-2xl">
-        <Button variant="ghost" className="mb-6 text-indigo-700">
+        <Button 
+          variant="ghost" 
+          className="mb-6 text-indigo-700"
+          onClick={() => navigate('/perfil')}
+        >
           <ChevronLeft className="h-4 w-4 mr-1" />
           Volver
         </Button>
@@ -354,6 +361,31 @@ const VerificarIdentidadPage: React.FC = () => {
             >
               Intentar de nuevo
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Escaneando Imagen */}
+      <Dialog open={isScanningImage} onOpenChange={() => {}}>
+        <DialogContent className="border-indigo-200 bg-white sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <div className="flex justify-center mb-4">
+              <div className="bg-indigo-100 p-4 rounded-full">
+                <Loader className="h-10 w-10 text-indigo-600 animate-spin" />
+              </div>
+            </div>
+            <DialogTitle className="text-center text-indigo-900">
+              Escaneando documento
+            </DialogTitle>
+            <DialogDescription className="text-center mt-2">
+              Estamos analizando la imagen de tu DNI. Por favor espera un momento...
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center pt-2">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
+              <span>Procesando zona MRZ</span>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

@@ -68,18 +68,25 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
   const transformMessages = useCallback((chatData: ChatInfo | null, userId: number | null): Message[] => {
     if (!chatData || !chatData.mensajes) return []
     
-    return chatData.mensajes.map((msg: ChatMessage) => ({
-      id: msg.id,
-      sender: {
-        id: msg.usuario_id,
-        name: msg.usuario ? `${msg.usuario.nombre} ${msg.usuario.apellido}` : "Usuario",
-        avatar: msg.usuario?.imagen_perfil || undefined,
-        isHost: msg.usuario_id === chatData.evento?.creador_id,
-      },
-      text: msg.mensaje,
-      timestamp: new Date(msg.fecha_creacion),
-      isCurrentUser: msg.usuario_id === userId,
-    }))
+    // Obtener el ID del creador del evento
+    const creadorId = chatData.evento?.creador_id
+    
+    return chatData.mensajes
+      // Filtrar mensajes del sistema (sin usuario)
+      .filter((msg: ChatMessage) => msg.usuario_id && msg.usuario)
+      .map((msg: ChatMessage) => ({
+        id: msg.id,
+        sender: {
+          id: msg.usuario_id,
+          name: msg.usuario ? `${msg.usuario.nombre} ${msg.usuario.apellido}` : "Usuario",
+          avatar: msg.usuario?.imagen_perfil || undefined,
+          // Solo mostrar badge de anfitrión si el usuario del mensaje es el creador
+          isHost: creadorId !== undefined && msg.usuario_id === creadorId,
+        },
+        text: msg.mensaje,
+        timestamp: new Date(msg.fecha_creacion),
+        isCurrentUser: msg.usuario_id === userId,
+      }))
   }, [])
 
   // Cargar mensajes del chat
@@ -196,12 +203,34 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
   }
 
   // Formatear horario del evento
-  const formatTime = (horario: string | undefined, duracion: number | undefined): string => {
+  const formatTime = (horario: string | undefined, duracion: string | number | null | undefined): string => {
     if (!horario) return "Horario no especificado"
-    if (duracion) {
-      return `${horario} (${duracion} min)`
+    
+    // Formatear hora (quitar segundos si vienen en formato HH:MM:SS)
+    let formattedTime = horario
+    if (horario.match(/^\d{2}:\d{2}:\d{2}$/)) {
+      formattedTime = horario.substring(0, 5) // Tomar solo HH:MM
     }
-    return horario
+    
+    // Si la duración ya es un string formateado (como "2 horas", "1h 30min"), mostrarlo
+    if (duracion && typeof duracion === 'string' && isNaN(Number(duracion))) {
+      return `${formattedTime} - ${duracion}`
+    }
+    
+    // Si es un número, solo mostrar si es mayor a 10 minutos (para evitar valores sin sentido)
+    const duracionNum = duracion ? (typeof duracion === 'string' ? parseInt(duracion, 10) : duracion) : null
+    
+    if (duracionNum && !isNaN(duracionNum) && duracionNum > 10) {
+      if (duracionNum >= 60) {
+        const hours = Math.floor(duracionNum / 60)
+        const mins = duracionNum % 60
+        const durationStr = mins > 0 ? `${hours}h ${mins}min` : `${hours}h`
+        return `${formattedTime} - ${durationStr}`
+      }
+      return `${formattedTime} - ${duracionNum} min`
+    }
+    
+    return formattedTime
   }
 
   // Obtener URL de imagen

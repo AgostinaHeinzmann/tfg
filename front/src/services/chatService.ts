@@ -12,8 +12,7 @@ export interface Message {
   usuario_id: number
   mensaje: string
   fecha_creacion: string
-  usuario: ChatUser
-  isHost?: boolean
+  usuario: ChatUser | null
 }
 
 export interface ChatEvent {
@@ -22,20 +21,17 @@ export interface ChatEvent {
   descripcion_evento: string
   fecha_inicio: string
   horario: string
-  duracion: number
+  duracion: string | number | null
   cant_participantes: number
+  participantes_actuales: number
   imagen: string | null
   ubicacion?: string
-  direccion?: {
-    calle: string
-    numero: string
-    ciudad?: string
-    pais?: string
-  }
-  creador_id: number
+  ciudad?: string
+  creador_id: number // ID del creador del evento
+  creador?: ChatUser | null
 }
 
-// Respuesta del backend (con nombres en inglés)
+// Respuesta del backend
 export interface ChatInfoResponse {
   event: ChatEvent
   participants: ChatUser[]

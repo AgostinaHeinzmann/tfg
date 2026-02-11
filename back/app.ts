@@ -5,6 +5,7 @@ import cors from "cors"
 import { sequelize } from "./config/database"
 
 import authRoutes from "./routes/authRoutes"
+import userRoutes from "./routes/userRoutes"
 import auth from "./middlewares/auth"
 import eventRoutes from "./routes/eventRoutes"
 import filtrosRoutes from "./routes/filtrosRoutes"
@@ -39,8 +40,14 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(auth);
+// Rutas públicas (sin autenticación)
 app.use("/auth", authRoutes)
+
+// Middleware de autenticación para rutas protegidas
+app.use(auth);
+
+// Rutas protegidas (requieren autenticación)
+app.use("/users", userRoutes)
 app.use("/event", eventRoutes)
 app.use("/filtros", filtrosRoutes)
 app.use("/itinerario", itinerarioRoutes)

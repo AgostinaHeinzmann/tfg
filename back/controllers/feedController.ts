@@ -345,6 +345,11 @@ export const deleteFeed = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    // Eliminar likes asociados
+    await PublicacionLike.destroy({
+      where: { publicacion_id: Number(id) }
+    });
+
     // Eliminar comentarios asociados
     await Comentario.destroy({
       where: { publicacion_id: Number(id) }

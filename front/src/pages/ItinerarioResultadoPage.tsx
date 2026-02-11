@@ -267,16 +267,6 @@ const ItinerarioResultadoPage: React.FC<ItinerarioResultadoPageProps> = ({ itine
                                       <p className="text-xs text-gray-500">{activity.address}</p>
                                     </div>
                                   </div>
-                                  {activity.ticketUrl && (
-                                    <div className="mt-3">
-                                      <Button variant="outline" size="sm" className="text-indigo-700 bg-transparent" asChild>
-                                        <Link to={activity.ticketUrl} target="_blank" rel="noopener noreferrer">
-                                          <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                                          Comprar entradas
-                                        </Link>
-                                      </Button>
-                                    </div>
-                                  )}
                                   <div className="mt-3">
                                     <Map
                                       center={activity.coordinates}

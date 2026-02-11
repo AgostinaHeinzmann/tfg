@@ -66,7 +66,7 @@ export class User extends Model<UserAttributes, UserCreationAttributes> {
   contrasena!: string
 
   @AllowNull(true)
-  @Column(DataType.STRING(500))
+  @Column(DataType.TEXT)
   imagen_perfil_id?: string | null
 
   @AllowNull(true)

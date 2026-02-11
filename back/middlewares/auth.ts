@@ -7,6 +7,7 @@ declare global {
     interface Request {
       user?: {
         uid: string;
+        email?: string;
       };
     }
   }
@@ -35,6 +36,7 @@ const auth: RequestHandler = async (req, res, next) => {
     // Agregar información del usuario al request
     req.user = {
       uid: decodeValue.uid,
+      email: decodeValue.email,
     };
 
     // Token válido, continuar

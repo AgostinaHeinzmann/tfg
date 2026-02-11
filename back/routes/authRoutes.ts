@@ -4,7 +4,7 @@ const router = Router()
 
 
 
-// Rutas
+// Rutas de autenticación
 router.post("/register", register)
 router.post("/login", login)
 router.post("/sync", syncUser)

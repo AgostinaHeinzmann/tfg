@@ -7,7 +7,6 @@ import { Label } from "../components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Globe, Mail, Lock } from "lucide-react"
-import { Checkbox } from "../components/ui/checkbox"
 import { register as registerUser, logInwithGoogle } from "@/services/auth"
 import { syncUserBackend } from "@/services/authService"
 import { saveToLocalStorage } from "@/lib/utils"
@@ -18,12 +17,13 @@ import { zodResolver } from "@hookform/resolvers/zod"
 
 const schema = z
   .object({
+    nombre: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres" }),
+    apellido: z.string().min(2, { message: "El apellido debe tener al menos 2 caracteres" }),
     email: z.email({ message: "Ingrese un correo válido" }),
     password: z
       .string()
       .min(6, { message: "La contraseña debe tener al menos 6 caracteres alfanuméricos" }),
     confirmPassword: z.string(),
-    acceptTerms: z.boolean().refine((val) => val, { message: "Debes aceptar los términos y condiciones" }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Las contraseñas no coinciden",
@@ -41,17 +41,16 @@ const RegistroPage: React.FC = () => {
     handleSubmit,
     formState: { errors, touchedFields },
     setError,
-    watch,
     trigger,
-    setValue, // <-- agrega esto
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     mode: "onChange",
     defaultValues: {
+      nombre: "",
+      apellido: "",
       email: "",
       password: "",
       confirmPassword: "",
-      acceptTerms: false,
     },
   })
 
@@ -72,20 +71,24 @@ const RegistroPage: React.FC = () => {
         try {
           // Sincronizar con backend
           const backendUser = await syncUserBackend({
-            email: result.email,
+            email: result.email || data.email,
             uid: result.uid,
-            nombre: result.displayName?.split(' ')[0] || 'Usuario',
-            apellido: result.displayName?.split(' ').slice(1).join(' ') || '',
-            imagen_perfil: result.photoURL
-          })
+            nombre: data.nombre,
+            apellido: data.apellido,
+            imagen_perfil: result.photoURL ?? undefined
+          }) as { user: Record<string, unknown> }
 
-          // Guardar datos combinados
+          // Guardar datos combinados con nombre completo
           const userData = {
             ...result,
-            ...backendUser.user
+            ...backendUser.user,
+            name: `${data.nombre} ${data.apellido}`.trim(),
+            displayName: `${data.nombre} ${data.apellido}`.trim()
           }
 
           saveToLocalStorage("userData", userData)
+          // Notificar al Navbar que se actualizaron los datos del usuario
+          window.dispatchEvent(new Event('userDataUpdated'))
           showToast.success("Registro exitoso", "¡Bienvenido!")
           navigate("/experiencias")
         } catch (error) {
@@ -112,12 +115,12 @@ const RegistroPage: React.FC = () => {
         try {
           // Sincronizar con backend
           const backendUser = await syncUserBackend({
-            email: result.email,
+            email: result.email || '',
             uid: result.uid,
             nombre: result.displayName?.split(' ')[0] || 'Usuario',
             apellido: result.displayName?.split(' ').slice(1).join(' ') || '',
-            imagen_perfil: result.photoURL
-          })
+            imagen_perfil: result.photoURL ?? undefined
+          }) as { user: Record<string, unknown> }
 
           // Guardar datos combinados
           const userData = {
@@ -126,6 +129,8 @@ const RegistroPage: React.FC = () => {
           }
 
           saveToLocalStorage("userData", userData)
+          // Notificar al Navbar que se actualizaron los datos del usuario
+          window.dispatchEvent(new Event('userDataUpdated'))
           showToast.success("Registro con Google exitoso", "¡Bienvenido!")
           navigate("/experiencias")
         } catch (error) {
@@ -160,6 +165,36 @@ const RegistroPage: React.FC = () => {
               </TabsList>
               <TabsContent value="email">
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="nombre">Nombre</Label>
+                      <Input
+                        id="nombre"
+                        type="text"
+                        placeholder="Nombre"
+                        className={errors.nombre ? "border-red-500" : ""}
+                        {...register("nombre", { onBlur: () => handleBlur("nombre") })}
+                        autoComplete="given-name"
+                      />
+                      {touchedFields.nombre && errors.nombre && (
+                        <p className="text-red-600 text-sm mt-1">{errors.nombre.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="apellido">Apellido</Label>
+                      <Input
+                        id="apellido"
+                        type="text"
+                        placeholder="Apellido"
+                        className={errors.apellido ? "border-red-500" : ""}
+                        {...register("apellido", { onBlur: () => handleBlur("apellido") })}
+                        autoComplete="family-name"
+                      />
+                      {touchedFields.apellido && errors.apellido && (
+                        <p className="text-red-600 text-sm mt-1">{errors.apellido.message}</p>
+                      )}
+                    </div>
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Correo electrónico</Label>
                     <div className="relative">
@@ -211,27 +246,6 @@ const RegistroPage: React.FC = () => {
                       <p className="text-red-600 text-sm mt-1">{errors.confirmPassword.message}</p>
                     )}
                   </div>
-                  <div className="flex items-center space-x-2 mt-4">
-                    <Checkbox
-                      id="terms"
-                      checked={watch("acceptTerms")}
-                      onCheckedChange={(checked) => setValue("acceptTerms", !!checked)}
-                      required
-                    />
-                    <label
-                      htmlFor="terms"
-                      className={`text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${errors.acceptTerms ? "text-red-600" : "text-gray-600"
-                        }`}
-                    >
-                      Acepto los{" "}
-                      <Link to="/terminos" className="text-indigo-600 hover:underline">
-                        términos y condiciones
-                      </Link>
-                    </label>
-                  </div>
-                  {touchedFields.acceptTerms && errors.acceptTerms && (
-                    <p className="text-red-600 text-sm mt-1">{errors.acceptTerms.message}</p>
-                  )}
                   <Button
                     type="submit"
                     className="w-full bg-indigo-600 hover:bg-indigo-700"

@@ -45,13 +45,14 @@ const LoginPage: React.FC = () => {
     if (result?.token) {
       try {
         // Sincronizar con backend para obtener usuario_id
+        // No enviar nombre/apellido por defecto para no sobrescribir datos existentes
         const backendUser = await syncUserBackend({
-          email: result.email,
+          email: result.email || email,
           uid: result.uid,
-          nombre: result.displayName?.split(' ')[0] || 'Usuario',
-          apellido: result.displayName?.split(' ').slice(1).join(' ') || '',
-          imagen_perfil: result.photoURL
-        })
+          nombre: result.displayName?.split(' ')[0] || undefined,
+          apellido: result.displayName?.split(' ').slice(1).join(' ') || undefined,
+          imagen_perfil: result.photoURL || undefined
+        }) as { user: Record<string, unknown> }
 
         // Guardar datos combinados
         const userData = {
@@ -60,6 +61,8 @@ const LoginPage: React.FC = () => {
         }
 
         saveToLocalStorage("userData", userData)
+        // Notificar al Navbar que se actualizaron los datos del usuario
+        window.dispatchEvent(new Event('userDataUpdated'))
         showToast.success("Inicio de sesión exitoso", "Bienvenido de vuelta");
         navigate("/experiencias");
       } catch (error) {
@@ -79,12 +82,12 @@ const LoginPage: React.FC = () => {
       try {
         // Sincronizar con backend para obtener usuario_id
         const backendUser = await syncUserBackend({
-          email: result.email,
+          email: result.email || '',
           uid: result.uid,
-          nombre: result.displayName?.split(' ')[0] || 'Usuario',
-          apellido: result.displayName?.split(' ').slice(1).join(' ') || '',
-          imagen_perfil: result.photoURL
-        })
+          nombre: result.displayName?.split(' ')[0] || undefined,
+          apellido: result.displayName?.split(' ').slice(1).join(' ') || undefined,
+          imagen_perfil: result.photoURL || undefined
+        }) as { user: Record<string, unknown> }
 
         // Guardar datos combinados
         const userData = {
@@ -93,6 +96,8 @@ const LoginPage: React.FC = () => {
         }
 
         saveToLocalStorage("userData", userData)
+        // Notificar al Navbar que se actualizaron los datos del usuario
+        window.dispatchEvent(new Event('userDataUpdated'))
         showToast.success("Inicio de sesión con Google exitoso");
         navigate("/experiencias");
       } catch (error) {

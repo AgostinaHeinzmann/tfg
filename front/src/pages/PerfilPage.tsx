@@ -25,9 +25,9 @@ import {
 
 import { getUserItineraries, deleteItineraryFromProfile, getItineraryDays } from "../services/itinerarioService"
 import { getUserEvents, unregisterUserFromEvent, deleteEvent } from "../services/eventService"
-import { auth } from "../../firebase/firebase.config"
 import { showToast } from "../lib/toast-utils"
-import { loadFromLocalStorage } from "../lib/utils"
+import { loadFromLocalStorage, saveToLocalStorage } from "../lib/utils"
+import { updateUserProfile, uploadProfileImage } from "../services/authService"
 import { Loader2 } from "lucide-react"
 import EventoDetalleModal from "./EventoDetallePage"
 import { getVerificacion } from "../services/verificacionService"
@@ -66,84 +66,46 @@ const PerfilPage: React.FC = () => {
   const [isVerified, setIsVerified] = useState(false)
   const [loading, setLoading] = useState(true)
   const [userData, setUserData] = useState({
-    name: "Agostina Heinzmann",
-    email: "agos.heinzmann@gmail.com",
-    location: "Córdoba, Argentina",
-    joinDate: "Junio 2025",
-    avatar: "/imagenes/image.png?height=100&width=100",
-    photoURL: ""
+    name: "",
+    email: "",
+    joinDate: "",
+    avatar: "",
+    photoURL: "",
+    displayName: ""
   })
   const [editProfileOpen, setEditProfileOpen] = useState(false)
   const [editName, setEditName] = useState("")
   const [editSurname, setEditSurname] = useState("")
-  const [editLocation, setEditLocation] = useState("")
   const [itineraries, setItineraries] = useState<any[]>([])
   const [events, setEvents] = useState<any[]>([])
   const [showItineraryModal, setShowItineraryModal] = useState<{ open: boolean; itinerary: any | null }>({ open: false, itinerary: null })
   const [showEventModal, setShowEventModal] = useState<{ open: boolean; event: any | null }>({ open: false, event: null })
   const [loadingItineraryDetails, setLoadingItineraryDetails] = useState(false)
   const [deleteEventDialog, setDeleteEventDialog] = useState<{ open: boolean; eventId: number | null; eventTitle: string }>({ open: false, eventId: null, eventTitle: '' })
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
-  // Mapa de coordenadas de ciudades conocidas
-  const cityCoordinates: { [key: string]: [number, number] } = {
-    'Buenos Aires': [-34.6037, -58.3816],
-    'Córdoba': [-31.4201, -64.1888],
-    'Rosario': [-32.9442, -60.6505],
-    'Mendoza': [-32.8895, -68.8458],
-    'La Plata': [-34.9205, -57.9536],
-    'San Miguel de Tucumán': [-26.8303, -65.2037],
-    'Mar del Plata': [-38.0023, -57.5575],
-    'Salta': [-24.7821, -65.4232],
-    'Santa Fe': [-31.6107, -60.6973],
-    'Bariloche': [-41.1335, -71.3103],
-    'Ushuaia': [-54.8019, -68.3030],
-    'Santiago': [-33.4489, -70.6693],
-    'Río de Janeiro': [-22.9068, -43.1729],
-    'São Paulo': [-23.5505, -46.6333],
-    'Montevideo': [-34.9011, -56.1645],
-    'Lima': [-12.0464, -77.0428],
-    'Bogotá': [4.7110, -74.0721],
-    'Madrid': [40.4168, -3.7038],
-    'Barcelona': [41.3851, 2.1734],
-    'París': [48.8566, 2.3522],
-    'Roma': [41.9028, 12.4964],
-    'Londres': [51.5074, -0.1278],
-    'Nueva York': [40.7128, -74.0060],
-  }
-
-  // Función para obtener coordenadas de una ciudad
-  const getCityCoordinates = (cityName: string): [number, number] => {
-    if (!cityName) return [-34.6037, -58.3816] // Default Buenos Aires
-    
-    // Buscar coincidencia exacta o parcial
-    const normalizedCity = cityName.toLowerCase().trim()
-    for (const [city, coords] of Object.entries(cityCoordinates)) {
-      if (city.toLowerCase() === normalizedCity || normalizedCity.includes(city.toLowerCase())) {
-        return coords
-      }
-    }
-    return [-34.6037, -58.3816] // Default
-  }
 
   // Cargar datos del perfil
   useEffect(() => {
     const loadProfileData = async () => {
-      const user = auth.currentUser
-      if (!user) {
-        navigate("/login")
-        return
-      }
 
       setLoading(true)
 
       try {
         // Cargar datos de usuario desde localStorage
         const userLocal = loadFromLocalStorage("userData")
+        console.log("User data loaded from localStorage:", userLocal)
         let userId = null;
+
+        if (!userLocal) {
+        navigate("/login")
+        return
+      }
 
         if (userLocal) {
           // Calcular fecha de registro real si existe
-          let joinDate = "Junio 2025" // fallback
+          let joinDate = "" // fallback
           if (userLocal.fecha_registro || userLocal.createdAt || userLocal.created_at) {
             const regDate = new Date(userLocal.fecha_registro || userLocal.createdAt || userLocal.created_at)
             if (!isNaN(regDate.getTime())) {
@@ -153,10 +115,9 @@ const PerfilPage: React.FC = () => {
             }
           }
           setUserData((prev) => ({ ...prev, ...userLocal, joinDate }))
-          const nameParts = (userLocal.name || userLocal.displayName || userData.name).split(" ")
+          const nameParts = (userLocal.name || userLocal.displayName || userData.displayName).split(" ")
           setEditName(nameParts[0] || "")
           setEditSurname(nameParts.slice(1).join(" ") || "")
-          setEditLocation(userLocal.location || userData.location)
           userId = userLocal.usuario_id;
         }
 
@@ -229,21 +190,110 @@ const PerfilPage: React.FC = () => {
     const nameParts = userData.name.split(" ")
     setEditName(nameParts[0] || "")
     setEditSurname(nameParts.slice(1).join(" ") || "")
-    setEditLocation(userData.location)
     setEditProfileOpen(true)
   }
 
-  const handleSaveProfile = () => {
-    const fullName = `${editName} ${editSurname}`.trim()
-    setUserData((prev) => ({ ...prev, name: fullName, location: editLocation }))
-    setEditProfileOpen(false)
-    // TODO: Guardar en backend
+  const handleSaveProfile = async () => {
+    setSavingProfile(true)
+    try {
+      const fullName = `${editName} ${editSurname}`.trim()
+      
+      // Intentar guardar en backend
+      try {
+        await updateUserProfile({
+          nombre: editName,
+          apellido: editSurname,
+        })
+      } catch (backendError: any) {
+        console.warn('Backend update failed, saving locally:', backendError)
+        // Continuar con guardado local aunque falle el backend
+      }
+      
+      // Actualizar estado local
+      setUserData((prev) => ({ ...prev, displayName: fullName }))
+      
+      // Guardar en localStorage
+      const userLocal = loadFromLocalStorage("userData")
+      if (userLocal) {
+        const updatedUser = {
+          ...userLocal,
+          displayName: fullName,
+          nombre: editName,
+          apellido: editSurname
+        }
+        saveToLocalStorage("userData", updatedUser)
+        // Notificar al Navbar que se actualizaron los datos del usuario
+        window.dispatchEvent(new Event('userDataUpdated'))
+      }
+      
+      setEditProfileOpen(false)
+      showToast.success("Perfil actualizado", "Los cambios se han guardado correctamente")
+    } catch (error) {
+      console.error('Error saving profile:', error)
+      showToast.error("Error", "No se pudieron guardar los cambios")
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
+  const handleUploadPhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      showToast.error("Error", "Por favor selecciona una imagen")
+      return
+    }
+    
+    // Validar tamaño (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showToast.error("Error", "La imagen no puede superar los 5MB")
+      return
+    }
+    
+    setUploadingImage(true)
+    try {
+      // Intentar subir al backend
+      let imageUrl = ''
+      try {
+        const response: any = await uploadProfileImage(file)
+        imageUrl = response.imageUrl || response.imagen_url || response.url || ''
+      } catch (backendError: any) {
+        console.warn('Backend upload failed, using local preview:', backendError)
+        // Usar URL local si falla el backend
+        imageUrl = URL.createObjectURL(file)
+      }
+      
+      if (imageUrl) {
+        // Actualizar estado local
+        setUserData((prev) => ({ ...prev, photoURL: imageUrl, avatar: imageUrl }))
+        
+        // Guardar en localStorage
+        const userLocal = loadFromLocalStorage("userData")
+        if (userLocal) {
+          const updatedUser = {
+            ...userLocal,
+            photoURL: imageUrl,
+            avatar: imageUrl,
+            imagen_perfil: imageUrl
+          }
+          saveToLocalStorage("userData", updatedUser)
+          // Notificar al Navbar que se actualizó la foto
+          window.dispatchEvent(new Event('userDataUpdated'))
+        }
+        
+        showToast.success("Foto actualizada", "Tu foto de perfil se ha cambiado")
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error)
+      showToast.error("Error", "No se pudo subir la foto")
+    } finally {
+      setUploadingImage(false)
+    }
   }
 
   const handleDeleteItinerary = async (itinerarioId: number) => {
-    const user = auth.currentUser
-    if (!user) return
-
     try {
       const userLocal = loadFromLocalStorage("userData")
       if (!userLocal || !userLocal.usuario_id) return
@@ -264,7 +314,6 @@ const PerfilPage: React.FC = () => {
       
       // Obtener coordenadas de la ciudad del itinerario
       const cityName = itinerary.ciudad_nombre || itinerary.destination || ''
-      const cityCoords = getCityCoordinates(cityName)
       
       // Los días ya vienen en itinerariosDia desde la carga inicial
       const daysData = itinerary.itinerariosDia || []
@@ -292,11 +341,7 @@ const PerfilPage: React.FC = () => {
           ? `${direccionObj.calle || ''} ${direccionObj.numero || ''}`.trim()
           : (typeof item.direccion === 'string' ? item.direccion : '')
         
-        // Usar coordenadas de la ciudad como fallback
-        const activityCoords: [number, number] = [
-          item.latitud || item.lat || cityCoords[0],
-          item.longitud || item.lng || cityCoords[1]
-        ]
+        
         
         const activity = {
           id: item.itinerario_por_dia_id?.toString() || item.id?.toString(),
@@ -304,7 +349,6 @@ const PerfilPage: React.FC = () => {
           description: item.descripcion || '',
           location: item.direccion_nombre || item.nombre?.replace(/Día\s*\d+:\s*/i, '') || '',
           address: item.direccion_completa || addressString || '',
-          coordinates: activityCoords,
           time: item.hora || '09:00',
           duration: item.duracion || '2 horas',
           price: item.precio || null,
@@ -335,7 +379,6 @@ const PerfilPage: React.FC = () => {
         interests: itinerary.interests || (itinerary.intereses ? itinerary.intereses.split(',').map((i: string) => i.trim()) : []),
         coverImage: itinerary.image || itinerary.imagen || finalDaysData[0]?.imagen || '/placeholder.svg',
         days,
-        coordinates: cityCoords
       }
       
       setShowItineraryModal({ open: true, itinerary: itineraryWithDays })
@@ -343,7 +386,6 @@ const PerfilPage: React.FC = () => {
       console.error('Error loading itinerary days:', error)
       // Si falla, mostrar el itinerario sin días
       const cityName = itinerary.ciudad_nombre || itinerary.destination || ''
-      const cityCoords = getCityCoordinates(cityName)
       const basicItinerary = {
         id: itinerary.id || itinerary.itinerario_id,
         destination: itinerary.destination || itinerary.ciudad_nombre || 'Destino',
@@ -351,7 +393,6 @@ const PerfilPage: React.FC = () => {
         interests: itinerary.interests || [],
         coverImage: itinerary.image || itinerary.imagen || '/placeholder.svg',
         days: [],
-        coordinates: cityCoords
       }
       setShowItineraryModal({ open: true, itinerary: basicItinerary })
     } finally {
@@ -365,7 +406,6 @@ const PerfilPage: React.FC = () => {
       setEvents(events.filter(e => e.id !== eventId))
       showToast.success("Te has dado de baja", "Ya no participas en este evento")
     } catch (error: any) {
-      console.error("Error unregistering from event:", error)
       showToast.error("Error", error.response?.data?.message || "No se pudo cancelar la inscripción")
     }
   }
@@ -383,7 +423,6 @@ const PerfilPage: React.FC = () => {
       showToast.success("Evento eliminado", "El evento se eliminó correctamente")
       setDeleteEventDialog({ open: false, eventId: null, eventTitle: '' })
     } catch (error: any) {
-      console.error("Error deleting event:", error)
       showToast.error("Error", error.response?.data?.message || "No se pudo eliminar el evento")
     }
   }
@@ -396,7 +435,6 @@ const PerfilPage: React.FC = () => {
       const eventsResponse: any = await getUserEvents(userLocal.usuario_id)
       setEvents(eventsResponse || [])
     } catch (error) {
-      console.error("Error reloading events:", error)
     }
   }
 
@@ -425,7 +463,7 @@ const PerfilPage: React.FC = () => {
                       type="text"
                       value={editName}
                       onChange={e => setEditName(e.target.value)}
-                      placeholder="Tu nombre"
+                      placeholder="Nombre"
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                     />
                   </div>
@@ -435,30 +473,22 @@ const PerfilPage: React.FC = () => {
                       type="text"
                       value={editSurname}
                       onChange={e => setEditSurname(e.target.value)}
-                      placeholder="Tu apellido"
+                      placeholder="Apellido"
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Ubicación</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
-                      type="text"
-                      value={editLocation}
-                      onChange={e => setEditLocation(e.target.value)}
-                      placeholder="Ciudad, País"
-                      className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                     />
                   </div>
                 </div>
               </div>
               
               <div className="p-6 border-t border-gray-100 flex gap-3 justify-end">
-                <Button variant="outline" onClick={() => setEditProfileOpen(false)}>Cancelar</Button>
-                <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleSaveProfile}>Guardar cambios</Button>
+                <Button variant="outline" onClick={() => setEditProfileOpen(false)} disabled={savingProfile}>Cancelar</Button>
+                <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleSaveProfile} disabled={savingProfile}>
+                  {savingProfile ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando...</>
+                  ) : (
+                    'Guardar cambios'
+                  )}
+                </Button>
               </div>
             </div>
           </div>
@@ -470,19 +500,34 @@ const PerfilPage: React.FC = () => {
               <CardHeader className="text-center pb-4">
                 <div className="relative mx-auto mb-4 w-24 h-24">
                   <Avatar className="w-24 h-24 border-4 border-white shadow-md">
-                    <AvatarImage src={userData.photoURL || userData.avatar || "/placeholder.svg"} alt={userData.name} />
+                    <AvatarImage src={userData.photoURL || userData.avatar || "/placeholder.svg"} alt={userData.displayName} />
                     <AvatarFallback className="text-2xl bg-indigo-200 text-indigo-800">
-                      {userData.name
+                      {userData.displayName
                         .split(" ")
                         .map((n) => n[0])
                         .join("")}
                     </AvatarFallback>
                   </Avatar>
-                  <button className="absolute bottom-0 right-0 bg-indigo-600 text-white p-1.5 rounded-full shadow-md hover:bg-indigo-700" onClick={handleEditProfile}>
-                    <Camera className="h-4 w-4" />
-                  </button>
+                  <input
+                    type="file"
+                    id="profile-photo-input"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleUploadPhoto}
+                    disabled={uploadingImage}
+                  />
+                  <label
+                    htmlFor="profile-photo-input"
+                    className={`absolute bottom-0 right-0 bg-indigo-600 text-white p-1.5 rounded-full shadow-md hover:bg-indigo-700 cursor-pointer ${uploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {uploadingImage ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Camera className="h-4 w-4" />
+                    )}
+                  </label>
                 </div>
-                <CardTitle className="text-xl text-indigo-900">{userData.name}</CardTitle>
+                <CardTitle className="text-xl text-indigo-900">{userData.displayName}</CardTitle>
                 <div className="flex justify-center mt-2">
                   {isVerified ? (
                     <Badge className="bg-green-100 text-green-800 flex items-center gap-1">
@@ -501,10 +546,6 @@ const PerfilPage: React.FC = () => {
                 <div className="flex items-center gap-3 text-gray-700">
                   <Mail className="h-4 w-4 text-indigo-600" />
                   <span>{userData.email}</span>
-                </div>
-                <div className="flex items-center gap-3 text-gray-700">
-                  <MapPin className="h-4 w-4 text-indigo-600" />
-                  <span>{userData.location}</span>
                 </div>
                 <div className="flex items-center gap-3 text-gray-700">
                   <Calendar className="h-4 w-4 text-indigo-600" />

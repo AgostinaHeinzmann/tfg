@@ -1,12 +1,13 @@
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Camera, MapPin, Heart, MessageCircle, MoreHorizontal, Clock, Loader2, Search, X, Edit, Trash2 } from "lucide-react"
+import { Camera, MapPin, Heart, MessageCircle, MoreHorizontal, Clock, Loader2, Search, X, Edit, Trash2, ZoomIn } from "lucide-react"
 import { getFeed, createFeed, likePublication, commentPublication, deleteFeed, updateFeed } from "@/services/feedService"
 import { getFilters } from "@/services/filtrosService"
 import { auth } from "../../firebase/firebase.config"
@@ -31,13 +32,18 @@ const ExperienciasPage: React.FC = () => {
   const [newPost, setNewPost] = useState("")
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [postCiudad, setPostCiudad] = useState<number | null>(null)
-  const [showLocationSelect, setShowLocationSelect] = useState(false)
+  const [postCiudadId, setPostCiudadId] = useState<number | null>(null)
+  const [postCiudadNombre, setPostCiudadNombre] = useState<string>("")
+  const [citySearchQuery, setCitySearchQuery] = useState("")
+  const [showCityDropdown, setShowCityDropdown] = useState(false)
   const [experiences, setExperiences] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [ciudades, setCiudades] = useState<Array<{ id: number; nombre: string }>>([])
   const [intereses, setIntereses] = useState<Array<{ id: number; tipo: string }>>([])
-  const [selectedCiudades, setSelectedCiudades] = useState<number[]>([])
+  const [filterCityQuery, setFilterCityQuery] = useState("")
+  const [selectedFilterCityId, setSelectedFilterCityId] = useState<number | null>(null)
+  const [selectedFilterCityName, setSelectedFilterCityName] = useState<string>("")
+  const [showFilterCityDropdown, setShowFilterCityDropdown] = useState(false)
   const [selectedIntereses, setSelectedIntereses] = useState<number[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [showFilters, setShowFilters] = useState(false)
@@ -47,10 +53,36 @@ const ExperienciasPage: React.FC = () => {
   const [editDescription, setEditDescription] = useState("")
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deletingPostId, setDeletingPostId] = useState<number | null>(null)
+  const [imageViewerOpen, setImageViewerOpen] = useState(false)
+  const [viewerImage, setViewerImage] = useState<string>("")
 
   // Obtener usuario_id del localStorage
   const userData = loadFromLocalStorage("userData")
   const currentUserId = userData?.usuario_id
+  // Usar photoURL (Google) o imagen_perfil_id (backend) para la foto de perfil
+  const userProfileImage = userData?.photoURL || userData?.imagen_perfil_id || auth.currentUser?.photoURL
+  // Construir nombre desde backend o usar displayName de Google
+  const userDisplayName = userData?.nombre 
+    ? `${userData.nombre} ${userData.apellido || ''}`.trim()
+    : userData?.displayName || auth.currentUser?.displayName || "Usuario"
+
+  // Filtrar ciudades según búsqueda para el post
+  const filteredCities = useMemo(() => {
+    if (!citySearchQuery.trim()) return ciudades.slice(0, 20)
+    const query = citySearchQuery.toLowerCase()
+    return ciudades.filter(
+      city => city.nombre.toLowerCase().includes(query)
+    ).slice(0, 20)
+  }, [citySearchQuery, ciudades])
+
+  // Filtrar ciudades para el filtro de búsqueda
+  const filteredCitiesForFilter = useMemo(() => {
+    if (!filterCityQuery.trim()) return ciudades.slice(0, 20)
+    const query = filterCityQuery.toLowerCase()
+    return ciudades.filter(
+      city => city.nombre.toLowerCase().includes(query)
+    ).slice(0, 20)
+  }, [filterCityQuery, ciudades])
 
   // Cargar ciudades e intereses para los filtros
   useEffect(() => {
@@ -73,8 +105,8 @@ const ExperienciasPage: React.FC = () => {
     setLoading(true)
     try {
       const filters: any = { page, size: 10 }
-      // Por ahora el backend solo soporta un ciudad_id, tomamos el primero si hay seleccionados
-      if (selectedCiudades.length > 0) filters.ciudad_id = selectedCiudades[0]
+      // Filtrar por ciudad si se seleccionó
+      if (selectedFilterCityId) filters.ciudad_id = selectedFilterCityId
       // Enviar usuario_id para saber qué publicaciones tienen like del usuario
       if (currentUserId) filters.usuario_id = currentUserId
 
@@ -104,7 +136,7 @@ const ExperienciasPage: React.FC = () => {
 
   useEffect(() => {
     loadFeed()
-  }, [page, selectedCiudades, selectedIntereses])
+  }, [page, selectedFilterCityId, selectedIntereses])
 
   // Debounced search
   useEffect(() => {
@@ -114,13 +146,12 @@ const ExperienciasPage: React.FC = () => {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
-  // Toggle filter selection
-  const toggleCiudad = (ciudadId: number) => {
-    setSelectedCiudades(prev =>
-      prev.includes(ciudadId)
-        ? prev.filter(id => id !== ciudadId)
-        : [...prev, ciudadId]
-    )
+  // Seleccionar ciudad para el filtro
+  const selectFilterCity = (cityId: number, cityName: string) => {
+    setSelectedFilterCityId(cityId)
+    setSelectedFilterCityName(cityName)
+    setFilterCityQuery("")
+    setShowFilterCityDropdown(false)
   }
 
   const toggleInteres = (interesId: number) => {
@@ -132,9 +163,19 @@ const ExperienciasPage: React.FC = () => {
   }
 
   const clearFilters = () => {
-    setSelectedCiudades([])
+    setSelectedFilterCityId(null)
+    setSelectedFilterCityName("")
+    setFilterCityQuery("")
     setSelectedIntereses([])
     setSearchQuery("")
+  }
+
+  // Seleccionar ciudad para publicar
+  const selectPostCity = (cityId: number, cityName: string) => {
+    setPostCiudadId(cityId)
+    setPostCiudadNombre(cityName)
+    setCitySearchQuery("")
+    setShowCityDropdown(false)
   }
 
   // Editar publicación
@@ -240,7 +281,7 @@ const ExperienciasPage: React.FC = () => {
         descripcion: newPost
       }
 
-      if (postCiudad) feedData.ciudad_id = postCiudad
+      if (postCiudadId) feedData.ciudad_id = postCiudadId
 
       // Convertir imagen a base64 si existe
       if (selectedImage) {
@@ -258,8 +299,10 @@ const ExperienciasPage: React.FC = () => {
       setNewPost("")
       setSelectedImage(null)
       setImagePreview(null)
-      setPostCiudad(null)
-      setShowLocationSelect(false)
+      setPostCiudadId(null)
+      setPostCiudadNombre("")
+      setCitySearchQuery("")
+      setShowCityDropdown(false)
 
       // Recargar feed
       loadFeed()
@@ -342,9 +385,9 @@ const ExperienciasPage: React.FC = () => {
           <CardContent className="pt-6">
             <div className="flex gap-4">
               <Avatar className="h-10 w-10">
-                <AvatarImage src={auth.currentUser?.photoURL || "/placeholder.svg"} />
+                <AvatarImage src={userProfileImage || "/placeholder.svg"} />
                 <AvatarFallback className="bg-indigo-200 text-indigo-800">
-                  {auth.currentUser?.displayName?.charAt(0) || "U"}
+                  {userDisplayName?.charAt(0) || "U"}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
@@ -356,7 +399,7 @@ const ExperienciasPage: React.FC = () => {
                 />
                 {imagePreview && (
                   <div className="mb-2 relative">
-                    <img src={imagePreview} alt="Preview" className="w-full h-40 object-cover rounded-lg" />
+                    <img src={imagePreview} alt="Preview" className="w-full max-h-80 object-contain rounded-lg bg-gray-100" />
                     <button
                       onClick={() => { setSelectedImage(null); setImagePreview(null); }}
                       className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70"
@@ -365,22 +408,34 @@ const ExperienciasPage: React.FC = () => {
                     </button>
                   </div>
                 )}
-                {showLocationSelect && (
-                  <div className="mb-3">
-                    <div className="flex flex-wrap gap-2">
-                      {ciudades.map(ciudad => (
-                        <Badge
-                          key={ciudad.id}
-                          className={`cursor-pointer px-3 py-1.5 transition-colors ${postCiudad === ciudad.id
-                            ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
-                          onClick={() => setPostCiudad(postCiudad === ciudad.id ? null : ciudad.id)}
+                {/* City Dropdown for Post */}
+                {showCityDropdown && (
+                  <div className="mb-3 relative">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Buscar ciudad..."
+                        value={citySearchQuery}
+                        onChange={(e) => setCitySearchQuery(e.target.value)}
+                        className="pl-10 pr-4 bg-gray-50 border-gray-200"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="mt-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-lg">
+                      {filteredCities.map((city) => (
+                        <button
+                          key={city.id}
+                          className="w-full text-left px-4 py-2 hover:bg-indigo-50 flex items-center justify-between transition-colors"
+                          onClick={() => selectPostCity(city.id, city.nombre)}
                         >
-                          {ciudad.nombre}
-                          {postCiudad === ciudad.id && <X className="h-3 w-3 ml-1" />}
-                        </Badge>
+                          <span className="font-medium">{city.nombre}</span>
+                        </button>
                       ))}
+                      {filteredCities.length === 0 && (
+                        <div className="px-4 py-3 text-gray-500 text-center">
+                          No se encontraron ciudades
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -405,11 +460,21 @@ const ExperienciasPage: React.FC = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`${postCiudad ? 'text-indigo-600' : 'text-gray-600'}`}
-                      onClick={() => setShowLocationSelect((prev) => !prev)}
+                      className={`${postCiudadNombre ? 'text-indigo-600' : 'text-gray-600'}`}
+                      onClick={() => setShowCityDropdown((prev) => !prev)}
                     >
                       <MapPin className="h-4 w-4 mr-2" />
-                      {postCiudad ? ciudades.find(c => c.id === postCiudad)?.nombre : 'Ubicación'}
+                      {postCiudadNombre || 'Ubicación'}
+                      {postCiudadNombre && (
+                        <X 
+                          className="h-3 w-3 ml-1" 
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setPostCiudadId(null)
+                            setPostCiudadNombre("")
+                          }}
+                        />
+                      )}
                     </Button>
                   </div>
                   <Button
@@ -456,13 +521,13 @@ const ExperienciasPage: React.FC = () => {
                 className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
               >
                 {showFilters ? "Ocultar filtros" : "Mostrar filtros"}
-                {(selectedCiudades.length > 0 || selectedIntereses.length > 0) && (
+                {(selectedFilterCityId || selectedIntereses.length > 0) && (
                   <Badge className="ml-2 bg-indigo-600 text-white text-xs">
-                    {selectedCiudades.length + selectedIntereses.length}
+                    {(selectedFilterCityId ? 1 : 0) + selectedIntereses.length}
                   </Badge>
                 )}
               </Button>
-              {(selectedCiudades.length > 0 || selectedIntereses.length > 0 || searchQuery) && (
+              {(selectedFilterCityId || selectedIntereses.length > 0 || searchQuery) && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -482,24 +547,58 @@ const ExperienciasPage: React.FC = () => {
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
-                    Ciudades
+                    Filtrar por ciudad
                   </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {ciudades.map(ciudad => (
-                      <Badge
-                        key={ciudad.id}
-                        className={`cursor-pointer px-3 py-1.5 transition-colors ${selectedCiudades.includes(ciudad.id)
-                          ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          }`}
-                        onClick={() => toggleCiudad(ciudad.id)}
-                      >
-                        {ciudad.nombre}
-                        {selectedCiudades.includes(ciudad.id) && (
-                          <X className="h-3 w-3 ml-1" />
-                        )}
+                  
+                  {/* Ciudad seleccionada */}
+                  {selectedFilterCityName && (
+                    <div className="mb-2">
+                      <Badge className="bg-indigo-600 text-white px-3 py-1.5">
+                        {selectedFilterCityName}
+                        <X 
+                          className="h-3 w-3 ml-1 cursor-pointer" 
+                          onClick={() => {
+                            setSelectedFilterCityId(null)
+                            setSelectedFilterCityName("")
+                          }}
+                        />
                       </Badge>
-                    ))}
+                    </div>
+                  )}
+                  
+                  {/* Dropdown para seleccionar ciudad */}
+                  <div className="relative">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Buscar ciudad para filtrar..."
+                        value={filterCityQuery}
+                        onChange={(e) => {
+                          setFilterCityQuery(e.target.value)
+                          setShowFilterCityDropdown(true)
+                        }}
+                        onFocus={() => setShowFilterCityDropdown(true)}
+                        className="pl-10 pr-4 bg-gray-50 border-gray-200"
+                      />
+                    </div>
+                    {showFilterCityDropdown && filterCityQuery && (
+                      <div className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-lg">
+                        {filteredCitiesForFilter.map((city) => (
+                          <button
+                            key={city.id}
+                            className="w-full text-left px-4 py-2 hover:bg-indigo-50 flex items-center justify-between transition-colors"
+                            onClick={() => selectFilterCity(city.id, city.nombre)}
+                          >
+                            <span className="font-medium">{city.nombre}</span>
+                          </button>
+                        ))}
+                        {filteredCitiesForFilter.length === 0 && (
+                          <div className="px-4 py-3 text-gray-500 text-center">
+                            No se encontraron ciudades
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -550,6 +649,10 @@ const ExperienciasPage: React.FC = () => {
                 onComment={handleComment}
                 onEdit={handleEdit}
                 onDelete={handleDeleteConfirm}
+                onImageClick={(imageUrl: string) => {
+                  setViewerImage(imageUrl)
+                  setImageViewerOpen(true)
+                }}
               />
             ))}
           </div>
@@ -570,11 +673,11 @@ const ExperienciasPage: React.FC = () => {
               <DialogTitle>Editar publicación</DialogTitle>
             </DialogHeader>
             <div className="py-4">
-              <Input
+              <Textarea
                 placeholder="Escribe tu experiencia..."
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
-                className="min-h-[100px]"
+                className="min-h-[120px] resize-none"
               />
             </div>
             <DialogFooter>
@@ -608,6 +711,21 @@ const ExperienciasPage: React.FC = () => {
           </DialogContent>
         </Dialog>
 
+        {/* Image Viewer Dialog */}
+        <Dialog open={imageViewerOpen} onOpenChange={setImageViewerOpen}>
+          <DialogContent className="sm:max-w-[90vw] sm:max-h-[90vh] p-0 bg-black/95">
+            <div className="relative flex items-center justify-center min-h-[50vh]">
+              {viewerImage && (
+                <img
+                  src={viewerImage}
+                  alt="Imagen ampliada"
+                  className="max-w-full max-h-[85vh] object-contain"
+                />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Load More */}
         {experiences.length > 0 && (
           <div className="text-center mt-8">
@@ -625,13 +743,14 @@ const ExperienciasPage: React.FC = () => {
   )
 }
 
-function ExperienceCard({ experience, currentUserId, onLike, onComment, onEdit, onDelete }: {
+function ExperienceCard({ experience, currentUserId, onLike, onComment, onEdit, onDelete, onImageClick }: {
   experience: any
   currentUserId: number | undefined
   onLike: (id: number) => void
   onComment: (id: number, mensaje: string) => void
   onEdit: (experience: any) => void
   onDelete: (id: number) => void
+  onImageClick: (imageUrl: string) => void
 }) {
   const [showCommentInput, setShowCommentInput] = useState(false)
   const [commentText, setCommentText] = useState("")
@@ -645,6 +764,9 @@ function ExperienceCard({ experience, currentUserId, onLike, onComment, onEdit, 
   }
 
   const isOwner = currentUserId && experience.usuario_id === currentUserId
+
+  // Get the city name from the ciudad relation
+  const cityName = experience.ciudad?.nombre
 
   return (
     <Card className="border-indigo-100 shadow-md">
@@ -662,10 +784,10 @@ function ExperienceCard({ experience, currentUserId, onLike, onComment, onEdit, 
                 {experience.usuario?.nombre} {experience.usuario?.apellido}
               </h3>
               <div className="flex items-center gap-1 text-sm text-gray-500">
-                {experience.ciudad && (
+                {cityName && (
                   <>
                     <MapPin className="h-3 w-3" />
-                    <span>{experience.ciudad.nombre}</span>
+                    <span>{cityName}</span>
                     <span>•</span>
                   </>
                 )}
@@ -705,7 +827,14 @@ function ExperienceCard({ experience, currentUserId, onLike, onComment, onEdit, 
         <p className="text-gray-700">{experience.descripcion}</p>
 
         {experience.imagenes && experience.imagenes.length > 0 && (
-          <div className="rounded-lg overflow-hidden">
+          <div className="rounded-lg overflow-hidden relative group cursor-pointer"
+            onClick={() => {
+              const imageUrl = experience.imagenes[0].imagen_base64
+                ? `data:${experience.imagenes[0].mime_type || 'image/jpeg'};base64,${experience.imagenes[0].imagen_base64}`
+                : experience.imagenes[0].url || "/placeholder.svg"
+              onImageClick(imageUrl)
+            }}
+          >
             <img
               src={
                 experience.imagenes[0].imagen_base64
@@ -713,8 +842,11 @@ function ExperienceCard({ experience, currentUserId, onLike, onComment, onEdit, 
                   : experience.imagenes[0].url || "/placeholder.svg"
               }
               alt="Experiencia de viaje"
-              className="w-full h-64 object-cover"
+              className="w-full max-h-96 object-contain bg-gray-100"
             />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+              <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+            </div>
           </div>
         )}
 

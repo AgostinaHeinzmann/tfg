@@ -26,8 +26,17 @@ import {
 } from "lucide-react";
 import { auth } from "../../../firebase/firebase.config";
 import { getUnreadCount } from "../../services/chatService";
+import { getUserProfile } from "../../services/authService";
 
 const NOTIFICATION_POLLING_INTERVAL = 30000; // 30 segundos
+
+// Interface para datos del usuario desde el backend
+interface BackendUser {
+  nombre: string;
+  apellido: string;
+  imagen_perfil_id?: string | null;
+  email: string;
+}
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -35,13 +44,80 @@ const Navbar: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState(0);
   const [user, setUser] = useState<any>(null);
+  const [backendUser, setBackendUser] = useState<BackendUser | null>(null);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
       setUser(firebaseUser);
+      if (!firebaseUser) {
+        setBackendUser(null);
+      }
     });
     return () => unsubscribe();
   }, []);
+
+  // Fetch backend user data when Firebase user changes
+  useEffect(() => {
+    const fetchBackendUser = async () => {
+      if (user) {
+        try {
+          const response = await getUserProfile();
+          if (response && typeof response === 'object' && 'success' in response && 'user' in response && response.success && response.user) {
+            setBackendUser(response.user as BackendUser);
+          }
+        } catch (error) {
+          console.error("Error fetching backend user:", error);
+        }
+      }
+    };
+    fetchBackendUser();
+
+    // Escuchar evento personalizado para refrescar datos del usuario
+    const handleUserDataUpdated = () => {
+      fetchBackendUser();
+    };
+    window.addEventListener('userDataUpdated', handleUserDataUpdated);
+    
+    return () => {
+      window.removeEventListener('userDataUpdated', handleUserDataUpdated);
+    };
+  }, [user]);
+
+  // Helper to get display name - prioritize backend data
+  const getDisplayName = () => {
+    if (backendUser?.nombre) {
+      return `${backendUser.nombre} ${backendUser.apellido || ''}`.trim();
+    }
+    return user?.displayName || "Usuario";
+  };
+
+  // Helper to get first name for navbar display
+  const getFirstName = () => {
+    if (backendUser?.nombre) {
+      return backendUser.nombre;
+    }
+    return user?.displayName?.split(" ")[0] || "Usuario";
+  };
+
+  // Helper to get avatar initials
+  const getAvatarInitials = () => {
+    if (backendUser?.nombre) {
+      const initials = backendUser.nombre[0] + (backendUser.apellido?.[0] || '');
+      return initials.toUpperCase();
+    }
+    if (user?.displayName) {
+      return user.displayName.split(" ").map((n: string) => n[0]).join("");
+    }
+    return "U";
+  };
+
+  // Helper to get profile image - prioritize backend data
+  const getProfileImage = () => {
+    if (backendUser?.imagen_perfil_id) {
+      return backendUser.imagen_perfil_id;
+    }
+    return user?.photoURL || "/placeholder.svg";
+  };
 
   // Fetch unread notifications count
   const fetchNotifications = useCallback(async () => {
@@ -162,22 +238,15 @@ const Navbar: React.FC = () => {
                   >
                     <Avatar className="h-8 w-8 ring-2 ring-white/30">
                       <AvatarImage
-                        src={user.photoURL || "/placeholder.svg"}
-                        alt={user.displayName || "Usuario"}
+                        src={getProfileImage()}
+                        alt={getDisplayName()}
                       />
                       <AvatarFallback className="bg-white/20 text-white">
-                        {user.displayName
-                          ? user.displayName
-                              .split(" ")
-                              .map((n: string) => n[0])
-                              .join("")
-                          : "U"}
+                        {getAvatarInitials()}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-sm font-medium">
-                      {user.displayName
-                        ? user.displayName.split(" ")[0]
-                        : "Usuario"}
+                      {getFirstName()}
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
@@ -285,21 +354,16 @@ const Navbar: React.FC = () => {
                 >
                   <Avatar className="h-8 w-8 ring-2 ring-white/30">
                     <AvatarImage
-                      src={user.photoURL || "/placeholder.svg"}
-                      alt={user.displayName || "Usuario"}
+                      src={getProfileImage()}
+                      alt={getDisplayName()}
                     />
                     <AvatarFallback className="bg-white/20 text-white">
-                      {user.displayName
-                        ? user.displayName
-                            .split(" ")
-                            .map((n: string) => n[0])
-                            .join("")
-                        : "U"}
+                      {getAvatarInitials()}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <div className="font-medium">
-                      {user.displayName || "Usuario"}
+                      {getDisplayName()}
                     </div>
                     <div className="text-sm text-white/70">Ver perfil</div>
                   </div>

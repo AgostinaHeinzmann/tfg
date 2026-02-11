@@ -1,12 +1,12 @@
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
 import { Avatar, AvatarFallback } from "../components/ui/avatar"
-import { Calendar, MapPin, Clock, Users, Plus, CheckCircle, Eye, Loader2 } from "lucide-react"
+import { Calendar, MapPin, Clock, Users, Plus, CheckCircle, Eye, Loader2, Search, X } from "lucide-react"
 import EventoDetalleModal from "./EventoDetallePage"
 import { showToast } from "../lib/toast-utils"
 import { loadFromLocalStorage } from "../lib/utils"
@@ -50,10 +50,23 @@ const EventosPage: React.FC = () => {
     intereses: Array<{ id: number; tipo: string }>
     ageGroups: Array<{ id: number; label: string }>
   }>({ intereses: [], ageGroups: [] })
-  const [locationInput, setLocationInput] = useState("")
+  const [ciudades, setCiudades] = useState<Array<{ id: number; nombre: string }>>([])
+  const [filterCityQuery, setFilterCityQuery] = useState("")
+  const [selectedFilterCityId, setSelectedFilterCityId] = useState<number | null>(null)
+  const [selectedFilterCityName, setSelectedFilterCityName] = useState<string>("")
+  const [showFilterCityDropdown, setShowFilterCityDropdown] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedAgeGroup, setSelectedAgeGroup] = useState<number | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+
+  // Filtrar ciudades según búsqueda para el filtro
+  const filteredCitiesForFilter = useMemo(() => {
+    if (!filterCityQuery.trim()) return ciudades.slice(0, 20)
+    const query = filterCityQuery.toLowerCase()
+    return ciudades.filter(
+      city => city.nombre.toLowerCase().includes(query)
+    ).slice(0, 20)
+  }, [filterCityQuery, ciudades])
 
   // Cargar filtros disponibles
   useEffect(() => {
@@ -65,6 +78,7 @@ const EventosPage: React.FC = () => {
             intereses: response.data.intereses || [],
             ageGroups: response.data.ageGroups || []
           })
+          setCiudades(response.data.ciudades || [])
         }
       } catch (error) {
         console.error("Error loading filters:", error)
@@ -72,6 +86,24 @@ const EventosPage: React.FC = () => {
     }
     loadFilters()
   }, [])
+
+  // Seleccionar ciudad para el filtro
+  const selectFilterCity = (cityId: number, cityName: string) => {
+    setSelectedFilterCityId(cityId)
+    setSelectedFilterCityName(cityName)
+    setFilterCityQuery("")
+    setShowFilterCityDropdown(false)
+  }
+
+  // Limpiar filtros
+  const clearFilters = () => {
+    setSelectedFilterCityId(null)
+    setSelectedFilterCityName("")
+    setFilterCityQuery("")
+    setSelectedCategory(null)
+    setSelectedAgeGroup(null)
+    setSelectedDate(null)
+  }
 
   // Cargar eventos
   const loadEvents = async () => {
@@ -97,7 +129,7 @@ const EventosPage: React.FC = () => {
   // Aplicar filtros
   const handleApplyFilters = () => {
     const newFilters: EventFilters = {}
-    if (locationInput) newFilters.location = locationInput
+    if (selectedFilterCityName) newFilters.location = selectedFilterCityName
     if (selectedCategory) newFilters.interests = selectedCategory
     if (selectedAgeGroup !== null) newFilters.ageGroup = selectedAgeGroup
     if (selectedDate) newFilters.date = selectedDate
@@ -130,14 +162,56 @@ const EventosPage: React.FC = () => {
                 <CardContent className="space-y-6">
                   <div className="space-y-2">
                     <div className="font-medium">Ubicación</div>
+                    
+                    {/* Ciudad seleccionada */}
+                    {selectedFilterCityName && (
+                      <div className="mb-2">
+                        <Badge className="bg-indigo-600 text-white px-3 py-1.5">
+                          {selectedFilterCityName}
+                          <X 
+                            className="h-3 w-3 ml-1 cursor-pointer" 
+                            onClick={() => {
+                              setSelectedFilterCityId(null)
+                              setSelectedFilterCityName("")
+                            }}
+                          />
+                        </Badge>
+                      </div>
+                    )}
+                    
+                    {/* Dropdown para seleccionar ciudad */}
                     <div className="relative">
-                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
-                      <Input
-                        placeholder="Ciudad o país"
-                        className="pl-10"
-                        value={locationInput}
-                        onChange={(e) => setLocationInput(e.target.value)}
-                      />
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Input
+                          placeholder="Buscar ciudad..."
+                          value={filterCityQuery}
+                          onChange={(e) => {
+                            setFilterCityQuery(e.target.value)
+                            setShowFilterCityDropdown(true)
+                          }}
+                          onFocus={() => setShowFilterCityDropdown(true)}
+                          className="pl-10 pr-4 bg-gray-50 border-gray-200"
+                        />
+                      </div>
+                      {showFilterCityDropdown && filterCityQuery && (
+                        <div className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-lg">
+                          {filteredCitiesForFilter.map((city) => (
+                            <button
+                              key={city.id}
+                              className="w-full text-left px-4 py-2 hover:bg-indigo-50 flex items-center justify-between transition-colors"
+                              onClick={() => selectFilterCity(city.id, city.nombre)}
+                            >
+                              <span className="font-medium">{city.nombre}</span>
+                            </button>
+                          ))}
+                          {filteredCitiesForFilter.length === 0 && (
+                            <div className="px-4 py-3 text-gray-500 text-center">
+                              No se encontraron ciudades
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -232,7 +306,15 @@ const EventosPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <Button className="w-full" onClick={handleApplyFilters}>Aplicar filtros</Button>
+                  <div className="flex flex-col gap-2">
+                    <Button className="w-full" onClick={handleApplyFilters}>Aplicar filtros</Button>
+                    {(selectedFilterCityName || selectedCategory || selectedAgeGroup !== null || selectedDate) && (
+                      <Button variant="outline" className="w-full text-gray-600" onClick={clearFilters}>
+                        <X className="h-4 w-4 mr-2" />
+                        Limpiar filtros
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>

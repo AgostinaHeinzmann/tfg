@@ -1,5 +1,5 @@
 import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Switch } from "../components/ui/switch"
 import { Calendar } from "../components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover"
+import { Badge } from "../components/ui/badge"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { CalendarIcon, ImageIcon, AlertCircle, X, Loader2 } from "lucide-react"
+import { CalendarIcon, ImageIcon, AlertCircle, X, Loader2, Search, MapPin } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert"
 import { Map } from "../components/map"
 import { showToast } from "../lib/toast-utils"
@@ -53,20 +54,45 @@ const CrearEventoPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [loadingEvent, setLoadingEvent] = useState(isEditing)
   const [interesesOptions, setInteresesOptions] = useState<Array<{ id: number; tipo: string }>>([]) 
+  const [ciudades, setCiudades] = useState<Array<{ id: number; nombre: string }>>([])
+  const [citySearchQuery, setCitySearchQuery] = useState("")
+  const [selectedCityId, setSelectedCityId] = useState<number | null>(null)
+  const [selectedCityName, setSelectedCityName] = useState<string>("")
+  const [showCityDropdown, setShowCityDropdown] = useState(false)
 
-  // Cargar opciones de intereses desde el backend
+  // Filtrar ciudades según búsqueda
+  const filteredCities = useMemo(() => {
+    if (!citySearchQuery.trim()) return ciudades.slice(0, 20)
+    const query = citySearchQuery.toLowerCase()
+    return ciudades.filter(
+      city => city.nombre.toLowerCase().includes(query)
+    ).slice(0, 20)
+  }, [citySearchQuery, ciudades])
+
+  // Seleccionar ciudad
+  const selectCity = (cityId: number, cityName: string) => {
+    setSelectedCityId(cityId)
+    setSelectedCityName(cityName)
+    setCitySearchQuery("")
+    setShowCityDropdown(false)
+    // Actualizar también el form.location para mantener compatibilidad
+    setForm(prev => ({ ...prev, location: cityName }))
+  }
+
+  // Cargar opciones de intereses y ciudades desde el backend
   useEffect(() => {
-    const loadIntereses = async () => {
+    const loadFiltersData = async () => {
       try {
         const response: any = await getFilters()
-        if (response.success && response.data?.intereses) {
-          setInteresesOptions(response.data.intereses)
+        if (response.success && response.data) {
+          setInteresesOptions(response.data.intereses || [])
+          setCiudades(response.data.ciudades || [])
         }
       } catch (error) {
-        console.error("Error loading intereses:", error)
+        console.error("Error loading filters:", error)
       }
     }
-    loadIntereses()
+    loadFiltersData()
   }, [])
 
   // Cargar datos del evento si estamos editando

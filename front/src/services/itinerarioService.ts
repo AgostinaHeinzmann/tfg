@@ -4,6 +4,8 @@ export interface ItineraryFilters {
   destination?: string
   duration?: string
   interests?: string
+  ciudad_id?: number
+  pais_id?: number
 }
 
 export interface UpdateItineraryData {
@@ -48,12 +50,21 @@ export interface ItineraryDay {
 
 /**
  * Buscar itinerarios con filtros
+ * Prioridad de filtros de ubicación: ciudad_id > pais_id > destination
  */
 export const searchItineraries = async (filters?: ItineraryFilters) => {
   try {
     const params = new URLSearchParams()
     
-    if (filters?.destination) params.append('destination', filters.destination)
+    // Filtros de ubicación (prioridad: ciudad_id > pais_id > destination)
+    if (filters?.ciudad_id) {
+      params.append('ciudad_id', filters.ciudad_id.toString())
+    } else if (filters?.pais_id) {
+      params.append('pais_id', filters.pais_id.toString())
+    } else if (filters?.destination) {
+      params.append('destination', filters.destination)
+    }
+    
     if (filters?.duration) params.append('duration', filters.duration)
     if (filters?.interests) params.append('interests', filters.interests)
 

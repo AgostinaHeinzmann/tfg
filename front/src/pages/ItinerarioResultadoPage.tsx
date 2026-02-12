@@ -120,11 +120,11 @@ const ItinerarioResultadoPage: React.FC<ItinerarioResultadoPageProps> = ({ itine
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
-      <div className="container mx-auto max-w-5xl py-12 px-4">
+    <div className="bg-gradient-to-b from-indigo-50 to-white">
+      <div className="container mx-auto max-w-5xl py-6 px-4">
 
         {/* Encabezado del itinerario */}
-        <div className="relative rounded-xl overflow-hidden h-[300px] mb-6">
+        <div className="relative rounded-xl overflow-hidden h-[250px] mb-6">
           <img
             src={itineraryData.coverImage || "/placeholder.svg"}
             alt={itineraryData.destination}

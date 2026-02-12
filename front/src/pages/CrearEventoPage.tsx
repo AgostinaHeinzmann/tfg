@@ -13,12 +13,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popove
 import { Badge } from "../components/ui/badge"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { CalendarIcon, ImageIcon, AlertCircle, X, Loader2, Search, MapPin } from "lucide-react"
+import { CalendarIcon, ImageIcon, AlertCircle, X, Loader2, Search, MapPin, Globe } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert"
 import { Map } from "../components/map"
 import { showToast } from "../lib/toast-utils"
 import { createEvent, updateEvent, getEventById } from "../services/eventService"
-import { getFilters } from "../services/filtrosService"
+import { getFilters, getCiudadesByPais } from "../services/filtrosService"
 import { auth } from "../../firebase/firebase.config"
 import { loadFromLocalStorage } from "@/lib/utils"
 
@@ -54,20 +54,73 @@ const CrearEventoPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [loadingEvent, setLoadingEvent] = useState(isEditing)
   const [interesesOptions, setInteresesOptions] = useState<Array<{ id: number; tipo: string }>>([]) 
-  const [ciudades, setCiudades] = useState<Array<{ id: number; nombre: string }>>([])
+  const [ciudades, setCiudades] = useState<Array<{ id: number; nombre: string; pais_id?: number }>>([])
+  const [paises, setPaises] = useState<Array<{ id: number; nombre: string }>>([])
   const [citySearchQuery, setCitySearchQuery] = useState("")
+  const [paisSearchQuery, setPaisSearchQuery] = useState("")
   const [selectedCityId, setSelectedCityId] = useState<number | null>(null)
   const [selectedCityName, setSelectedCityName] = useState<string>("")
+  const [selectedPaisId, setSelectedPaisId] = useState<number | null>(null)
+  const [selectedPaisName, setSelectedPaisName] = useState<string>("")
   const [showCityDropdown, setShowCityDropdown] = useState(false)
+  const [showPaisDropdown, setShowPaisDropdown] = useState(false)
+  const [filteredCiudadesByPais, setFilteredCiudadesByPais] = useState<Array<{ id: number; nombre: string }>>([])
+  const [loadingCities, setLoadingCities] = useState(false)
 
-  // Filtrar ciudades según búsqueda
+  // Filtrar ciudades según búsqueda (si no hay país seleccionado, usa todas las ciudades)
   const filteredCities = useMemo(() => {
-    if (!citySearchQuery.trim()) return ciudades.slice(0, 20)
+    const citiesToFilter = selectedPaisId ? filteredCiudadesByPais : ciudades
+    if (!citySearchQuery.trim()) return citiesToFilter.slice(0, 20)
     const query = citySearchQuery.toLowerCase()
-    return ciudades.filter(
+    return citiesToFilter.filter(
       city => city.nombre.toLowerCase().includes(query)
     ).slice(0, 20)
-  }, [citySearchQuery, ciudades])
+  }, [citySearchQuery, ciudades, filteredCiudadesByPais, selectedPaisId])
+
+  // Filtrar países según búsqueda
+  const filteredPaises = useMemo(() => {
+    if (!paisSearchQuery.trim()) return paises.slice(0, 20)
+    const query = paisSearchQuery.toLowerCase()
+    return paises.filter(
+      pais => pais.nombre.toLowerCase().includes(query)
+    ).slice(0, 20)
+  }, [paisSearchQuery, paises])
+
+  // Cargar ciudades cuando se selecciona un país
+  useEffect(() => {
+    const loadCitiesByPais = async () => {
+      if (!selectedPaisId) {
+        setFilteredCiudadesByPais([])
+        return
+      }
+      
+      setLoadingCities(true)
+      try {
+        const cities = await getCiudadesByPais(selectedPaisId)
+        setFilteredCiudadesByPais(cities)
+      } catch (error) {
+        console.error("Error loading cities by country:", error)
+        // Fallback: filtrar ciudades localmente si el endpoint falla
+        const filtered = ciudades.filter(c => c.pais_id === selectedPaisId)
+        setFilteredCiudadesByPais(filtered)
+      } finally {
+        setLoadingCities(false)
+      }
+    }
+    
+    loadCitiesByPais()
+  }, [selectedPaisId, ciudades])
+
+  // Seleccionar país
+  const selectPais = (paisId: number, paisName: string) => {
+    setSelectedPaisId(paisId)
+    setSelectedPaisName(paisName)
+    setPaisSearchQuery("")
+    setShowPaisDropdown(false)
+    // Limpiar ciudad seleccionada al cambiar de país
+    setSelectedCityId(null)
+    setSelectedCityName("")
+  }
 
   // Seleccionar ciudad
   const selectCity = (cityId: number, cityName: string) => {
@@ -75,11 +128,42 @@ const CrearEventoPage: React.FC = () => {
     setSelectedCityName(cityName)
     setCitySearchQuery("")
     setShowCityDropdown(false)
-    // Actualizar también el form.location para mantener compatibilidad
-    setForm(prev => ({ ...prev, location: cityName }))
+    // Geocodificar la ciudad para actualizar el mapa
+    geocodeCity(cityName)
   }
 
-  // Cargar opciones de intereses y ciudades desde el backend
+  // Geocodificar ciudad para actualizar el mapa
+  const geocodeCity = async (cityName: string) => {
+    try {
+      const searchQuery = selectedPaisName ? `${cityName}, ${selectedPaisName}` : cityName
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`)
+      const data = await res.json()
+      if (data && data.length > 0) {
+        const lat = parseFloat(data[0].lat)
+        const lon = parseFloat(data[0].lon)
+        setForm((prev) => ({ ...prev, coordinates: [lat, lon] }))
+      }
+    } catch (err) {
+      console.error("Error geocoding city:", err)
+    }
+  }
+
+  // Limpiar país seleccionado
+  const clearPais = () => {
+    setSelectedPaisId(null)
+    setSelectedPaisName("")
+    setSelectedCityId(null)
+    setSelectedCityName("")
+    setFilteredCiudadesByPais([])
+  }
+
+  // Limpiar ciudad seleccionada
+  const clearCity = () => {
+    setSelectedCityId(null)
+    setSelectedCityName("")
+  }
+
+  // Cargar opciones de intereses, ciudades y países desde el backend
   useEffect(() => {
     const loadFiltersData = async () => {
       try {
@@ -87,6 +171,7 @@ const CrearEventoPage: React.FC = () => {
         if (response.success && response.data) {
           setInteresesOptions(response.data.intereses || [])
           setCiudades(response.data.ciudades || [])
+          setPaises(response.data.paises || [])
         }
       } catch (error) {
         console.error("Error loading filters:", error)
@@ -119,7 +204,7 @@ const CrearEventoPage: React.FC = () => {
           description: event.descripcion_evento || "",
           category: "", // TODO: cargar categoria si existe
           maxParticipants: event.cant_participantes?.toString() || "10",
-          location: event.calle || "",
+          location: event.calle || event.direccion?.calle || "",
           coordinates: event.latitud && event.longitud 
             ? [event.latitud, event.longitud] 
             : [41.3851, 2.1734],
@@ -130,6 +215,23 @@ const CrearEventoPage: React.FC = () => {
           minAge: event.restriccion_edad?.toString() || "18",
           privateEvent: false,
         })
+
+        // Cargar ciudad y país si existen
+        if (event.direccion?.ciudad) {
+          setSelectedCityId(event.direccion.ciudad.id || event.direccion.ciudad_id)
+          setSelectedCityName(event.direccion.ciudad.nombre || "")
+          
+          if (event.direccion.ciudad.pais) {
+            setSelectedPaisId(event.direccion.ciudad.pais.id || event.direccion.ciudad.pais_id)
+            setSelectedPaisName(event.direccion.ciudad.pais.nombre || "")
+          }
+        } else if (event.ciudad_id) {
+          // Fallback si la estructura es diferente
+          setSelectedCityId(event.ciudad_id)
+          if (event.ciudad?.nombre) {
+            setSelectedCityName(event.ciudad.nombre)
+          }
+        }
 
         // Cargar imagen si existe
         if (event.imagen_base64) {
@@ -164,16 +266,39 @@ const CrearEventoPage: React.FC = () => {
     }
   }, [isEditing])
 
+  // Cerrar dropdowns al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (!target.closest('.pais-dropdown-container')) {
+        setShowPaisDropdown(false)
+      }
+      if (!target.closest('.city-dropdown-container')) {
+        setShowCityDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target
     if (type === "checkbox" && e.target instanceof HTMLInputElement) {
       setForm({ ...form, [name]: e.target.checked })
     } else {
       setForm({ ...form, [name]: value })
-      // Geocodificación automática al escribir ubicación
+      // Geocodificación automática al escribir dirección
       if (name === "location" && value.length > 5) {
         try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}`)
+          // Construir query con ciudad y país si están seleccionados
+          let searchQuery = value
+          if (selectedCityName) {
+            searchQuery = `${value}, ${selectedCityName}`
+            if (selectedPaisName) {
+              searchQuery = `${value}, ${selectedCityName}, ${selectedPaisName}`
+            }
+          }
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`)
           const data = await res.json()
           if (data && data.length > 0) {
             const lat = parseFloat(data[0].lat)
@@ -248,8 +373,18 @@ const CrearEventoPage: React.FC = () => {
       }
     } else {
       // En modo creación, validar todos los campos obligatorios
-      if (!form.title || !form.description || !form.category || !form.maxParticipants || !form.location || !form.date || !form.time || !form.duration) {
+      if (!form.title || !form.description || !form.category || !form.maxParticipants || !form.date || !form.time || !form.duration) {
         showToast.error("Error", "Completa todos los campos obligatorios")
+        return
+      }
+      // Validar que se haya seleccionado país y ciudad
+      if (!selectedPaisId || !selectedCityId) {
+        showToast.error("Error", "Debes seleccionar un país y una ciudad para el evento")
+        return
+      }
+      // Validar que se haya ingresado una dirección
+      if (!form.location) {
+        showToast.error("Error", "Debes ingresar una dirección para el evento")
         return
       }
     }
@@ -282,6 +417,7 @@ const CrearEventoPage: React.FC = () => {
         duracion: form.duration ? parseFloat(form.duration) : undefined,
         cant_participantes: form.maxParticipants ? parseInt(form.maxParticipants) : undefined,
         usuario_id: usuarioId,
+        ciudad_id: selectedCityId || undefined,
         calle: form.location || undefined,
         latitud: form.coordinates[0],
         longitud: form.coordinates[1]
@@ -480,22 +616,150 @@ const CrearEventoPage: React.FC = () => {
               <CardDescription>¿Dónde y cuándo se realizará tu evento?</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Selector de País */}
               <div className="space-y-2">
-                <Label htmlFor="location">Ubicación {!isEditing && '*'}</Label>
+                <Label>País {!isEditing && '*'}</Label>
+                
+                {/* País seleccionado */}
+                {selectedPaisName && (
+                  <div className="mb-2">
+                    <Badge className="bg-indigo-600 text-white px-3 py-1.5 flex items-center gap-1 w-fit">
+                      <Globe className="h-3 w-3" />
+                      {selectedPaisName}
+                      <X 
+                        className="h-3 w-3 ml-1 cursor-pointer" 
+                        onClick={clearPais}
+                      />
+                    </Badge>
+                  </div>
+                )}
+
+                {/* Dropdown de países */}
+                <div className="relative pais-dropdown-container">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Buscar país..."
+                      value={paisSearchQuery}
+                      onChange={(e) => {
+                        setPaisSearchQuery(e.target.value)
+                        setShowPaisDropdown(true)
+                      }}
+                      onFocus={() => setShowPaisDropdown(true)}
+                      className="pl-10 pr-4 bg-gray-50 border-gray-200"
+                      disabled={!!selectedPaisName}
+                    />
+                  </div>
+                  {showPaisDropdown && paisSearchQuery && !selectedPaisName && (
+                    <div className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-lg">
+                      {filteredPaises.map((pais) => (
+                        <button
+                          key={pais.id}
+                          type="button"
+                          className="w-full text-left px-4 py-2 hover:bg-indigo-50 flex items-center gap-2 transition-colors"
+                          onClick={() => selectPais(pais.id, pais.nombre)}
+                        >
+                          <Globe className="h-4 w-4 text-gray-400" />
+                          <span className="font-medium">{pais.nombre}</span>
+                        </button>
+                      ))}
+                      {filteredPaises.length === 0 && (
+                        <div className="px-4 py-3 text-gray-500 text-center">
+                          No se encontraron países
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Selector de Ciudad */}
+              <div className="space-y-2">
+                <Label>Ciudad {!isEditing && '*'}</Label>
+                
+                {/* Ciudad seleccionada */}
+                {selectedCityName && (
+                  <div className="mb-2">
+                    <Badge className="bg-indigo-600 text-white px-3 py-1.5 flex items-center gap-1 w-fit">
+                      <MapPin className="h-3 w-3" />
+                      {selectedCityName}
+                      <X 
+                        className="h-3 w-3 ml-1 cursor-pointer" 
+                        onClick={clearCity}
+                      />
+                    </Badge>
+                  </div>
+                )}
+
+                {/* Dropdown de ciudades */}
+                <div className="relative city-dropdown-container">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder={selectedPaisId ? "Buscar ciudad..." : "Primero selecciona un país"}
+                      value={citySearchQuery}
+                      onChange={(e) => {
+                        setCitySearchQuery(e.target.value)
+                        setShowCityDropdown(true)
+                      }}
+                      onFocus={() => setShowCityDropdown(true)}
+                      className="pl-10 pr-4 bg-gray-50 border-gray-200"
+                      disabled={!selectedPaisId || !!selectedCityName}
+                    />
+                  </div>
+                  {showCityDropdown && citySearchQuery && selectedPaisId && !selectedCityName && (
+                    <div className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-lg">
+                      {loadingCities ? (
+                        <div className="px-4 py-3 text-gray-500 text-center flex items-center justify-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Cargando ciudades...
+                        </div>
+                      ) : (
+                        <>
+                          {filteredCities.map((city) => (
+                            <button
+                              key={city.id}
+                              type="button"
+                              className="w-full text-left px-4 py-2 hover:bg-indigo-50 flex items-center gap-2 transition-colors"
+                              onClick={() => selectCity(city.id, city.nombre)}
+                            >
+                              <MapPin className="h-4 w-4 text-gray-400" />
+                              <span className="font-medium">{city.nombre}</span>
+                            </button>
+                          ))}
+                          {filteredCities.length === 0 && (
+                            <div className="px-4 py-3 text-gray-500 text-center">
+                              No se encontraron ciudades
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Campo de Dirección */}
+              <div className="space-y-2">
+                <Label htmlFor="location">Dirección {!isEditing && '*'}</Label>
                 <Input
                   id="location"
                   name="location"
-                  placeholder="Dirección completa del evento"
+                  placeholder={selectedCityName ? "Ej: Av. Corrientes 1234" : "Primero selecciona país y ciudad"}
                   value={form.location}
                   onChange={handleChange}
                   required={!isEditing}
+                  disabled={!selectedCityId}
                 />
+                <p className="text-xs text-gray-500">
+                  Ingresa la calle y número del evento
+                </p>
                 <div className="mt-3">
                   <Map
                     center={form.coordinates}
                     zoom={16}
                     height="200px"
-                    address={form.location}
+                    address={selectedCityName ? `${form.location}, ${selectedCityName}` : form.location}
                     title="Ubicación del evento"
                     showGoogleMapsButton={true}
                   />

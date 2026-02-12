@@ -49,7 +49,7 @@ export const getAllEvents = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { location, interests, ageGroup, date, size = "10", page = "0" } = req.query;
+    const { location, ciudad_id, pais_id, interests, ageGroup, date, size = "10", page = "0", usuario_id } = req.query;
 
     const ageGroups: { [key: number]: [number, number] } = {
       0: [0, 18],
@@ -100,9 +100,33 @@ export const getAllEvents = async (
       }
     }
 
+    // Determinar si necesitamos filtrar por ubicación
+    const hasCiudadId = !!(ciudad_id && ciudad_id !== '');
+    const hasPaisId = !!(pais_id && pais_id !== '');
+    const hasLocationText = !!(location && location !== '');
+    const hasLocationFilter = hasCiudadId || hasPaisId || hasLocationText;
+
     // Configurar paginación
     const pageSize = Math.min(Number(size), 50); // Limitar el tamaño máximo de página
     const offset = Math.max(0, Number(page)) * pageSize;
+
+    // Construir where clause para direccion/ciudad
+    let direccionWhere: any = {};
+    let ciudadWhere: any = {};
+
+    if (hasCiudadId) {
+      // Filtro por ciudad_id específico (dropdown)
+      const ciudadIdNum = parseInt(ciudad_id as string, 10);
+      if (!isNaN(ciudadIdNum)) {
+        ciudadWhere.ciudad_id = ciudadIdNum;
+      }
+    } else if (hasPaisId) {
+      // Filtro por pais_id - buscar todas las ciudades del país
+      const paisIdNum = parseInt(pais_id as string, 10);
+      if (!isNaN(paisIdNum)) {
+        ciudadWhere.pais_id = paisIdNum;
+      }
+    }
 
     const events = await Event.findAll({
       where: whereClause,
@@ -120,11 +144,13 @@ export const getAllEvents = async (
         },
         {
           model: Direccion,
-          required: !!(location && location !== ''),
+          required: hasLocationFilter,
+          where: Object.keys(direccionWhere).length > 0 ? direccionWhere : undefined,
           include: [
             {
               model: Ciudad,
-              required: !!(location && location !== ''),
+              required: hasLocationFilter,
+              where: Object.keys(ciudadWhere).length > 0 ? ciudadWhere : undefined,
               include: [
                 {
                   model: Pais,
@@ -134,14 +160,27 @@ export const getAllEvents = async (
               ]
             }
           ]
+        },
+        {
+          model: InscripcionEvent,
+          as: 'inscripciones',
+          required: false
+        },
+        {
+          model: User,
+          as: 'usuario',
+          required: false,
+          attributes: {
+            exclude: ['contrasena']
+          }
         }
       ],
       order: [['fecha_inicio', 'ASC']]
     });
 
-    // Si hay filtro de location, filtrar en memoria por ciudad o país
+    // Si hay filtro de location por texto (no por id), filtrar en memoria por ciudad o país
     let filteredEvents = events;
-    if (location && location !== '') {
+    if (hasLocationText && !hasCiudadId && !hasPaisId) {
       const locationLower = (location as string).toLowerCase();
       filteredEvents = events.filter(event => {
         const ciudad = (event as any).direccion?.ciudad;
@@ -153,9 +192,28 @@ export const getAllEvents = async (
       });
     }
 
+    // Si se proporciona usuario_id, agregar información de inscripción
+    let eventsWithInscription = filteredEvents.map(event => {
+      const eventData = event.toJSON() as any;
+      
+      // Verificar si el usuario está inscrito
+      if (usuario_id) {
+        const usuarioIdNum = parseInt(usuario_id as string, 10);
+        eventData.usuario_inscrito = eventData.inscripciones?.some(
+          (ins: any) => ins.usuario_id === usuarioIdNum
+        ) || false;
+        eventData.es_anfitrion = eventData.usuario_id === usuarioIdNum;
+      } else {
+        eventData.usuario_inscrito = false;
+        eventData.es_anfitrion = false;
+      }
+      
+      return eventData;
+    });
+
     res.status(200).json({
       success: true,
-      data: filteredEvents,
+      data: eventsWithInscription,
       pagination: {
         page: Number(page),
         pageSize,
@@ -181,6 +239,7 @@ export const getEventById = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    const { usuario_id } = req.query;
 
     // Validar que el id sea un número válido
     if (!id || isNaN(Number(id))) {
@@ -218,7 +277,17 @@ export const getEventById = async (
         },
         {
           model: InscripcionEvent,
-          required: false
+          as: 'inscripciones',
+          required: false,
+          include: [
+            {
+              model: User,
+              as: 'usuario',
+              attributes: {
+                exclude: ['contrasena']
+              }
+            }
+          ]
         },
         {
           model: EventUser,
@@ -226,6 +295,7 @@ export const getEventById = async (
         },
         {
           model: User,
+          as: 'usuario',
           required: false,
           attributes: {
             exclude: ['contrasena']
@@ -239,9 +309,23 @@ export const getEventById = async (
       return;
     }
 
+    // Agregar información de inscripción del usuario
+    const eventData = event.toJSON() as any;
+    
+    if (usuario_id) {
+      const usuarioIdNum = parseInt(usuario_id as string, 10);
+      eventData.usuario_inscrito = eventData.inscripciones?.some(
+        (ins: any) => ins.usuario_id === usuarioIdNum
+      ) || false;
+      eventData.es_anfitrion = eventData.usuario_id === usuarioIdNum;
+    } else {
+      eventData.usuario_inscrito = false;
+      eventData.es_anfitrion = false;
+    }
+
     res.status(200).json({
       success: true,
-      data: event
+      data: eventData
     });
 
   } catch (error) {
@@ -271,6 +355,7 @@ export const createEvent = async (
       restriccion_edad,
       direccion_id,
       usuario_id,
+      ciudad_id,  // ID de la ciudad seleccionada del dropdown
       calle,
       numero,
       imagen_id,
@@ -298,8 +383,11 @@ export const createEvent = async (
       return;
     }
 
-    // Verificar que la dirección exista si se proporciona
+    // Manejar la dirección del evento
+    let finalDireccionId: number | null = null;
+
     if (direccion_id) {
+      // Verificar que la dirección exista si se proporciona directamente
       const direccionExists = await Direccion.findByPk(direccion_id);
       if (!direccionExists) {
         res.status(404).json({
@@ -308,6 +396,26 @@ export const createEvent = async (
         });
         return;
       }
+      finalDireccionId = Number(direccion_id);
+    } else if (ciudad_id && calle) {
+      // Crear una nueva dirección si se proporciona ciudad_id y calle
+      const ciudadExists = await Ciudad.findByPk(ciudad_id);
+      if (!ciudadExists) {
+        res.status(404).json({
+          success: false,
+          message: "City not found"
+        });
+        return;
+      }
+
+      // Crear la nueva dirección
+      const nuevaDireccion = await Direccion.create({
+        ciudad_id: Number(ciudad_id),
+        calle: calle,
+        numero: numero || 'S/N'
+      } as any);
+      
+      finalDireccionId = nuevaDireccion.direccion_id;
     }
 
     const newEvent = await Event.create({
@@ -318,7 +426,7 @@ export const createEvent = async (
       duracion,
       cant_participantes: cant_participantes ? Number(cant_participantes) : null,
       restriccion_edad: restriccion_edad ? Number(restriccion_edad) : null,
-      direccion_id: direccion_id ? Number(direccion_id) : null,
+      direccion_id: finalDireccionId,
       usuario_id: Number(usuario_id),
       calle,
       numero,
@@ -347,9 +455,28 @@ export const createEvent = async (
       await Interes.bulkCreate(interesesData as any);
     }
 
-    // Obtener el evento con sus intereses para devolverlo
+    // Obtener el evento con sus intereses y dirección para devolverlo
     const eventWithIntereses = await Event.findByPk(newEvent.evento_id, {
-      include: [{ model: Interes, as: 'intereses' }]
+      include: [
+        { model: Interes, as: 'intereses' },
+        {
+          model: Direccion,
+          required: false,
+          include: [
+            {
+              model: Ciudad,
+              required: false,
+              include: [
+                {
+                  model: Pais,
+                  required: false,
+                  as: 'pais'
+                }
+              ]
+            }
+          ]
+        }
+      ]
     });
 
     res.status(201).json({
@@ -409,6 +536,7 @@ export const updateEvent = async (
       restriccion_edad,
       direccion_id,
       usuario_id,
+      ciudad_id,  // ID de la ciudad seleccionada del dropdown
       calle,
       numero,
       imagen_id,
@@ -438,16 +566,43 @@ export const updateEvent = async (
       }
     }
 
-    // Verificar que la dirección exista si se proporciona
-    if (direccion_id) {
-      const direccionExists = await Direccion.findByPk(direccion_id);
-      if (!direccionExists) {
+    // Manejar la dirección del evento
+    let finalDireccionId: number | null | undefined = undefined;
+
+    if (direccion_id !== undefined) {
+      // Si se proporciona direccion_id directamente
+      if (direccion_id) {
+        const direccionExists = await Direccion.findByPk(direccion_id);
+        if (!direccionExists) {
+          res.status(404).json({
+            success: false,
+            message: "Address not found"
+          });
+          return;
+        }
+        finalDireccionId = Number(direccion_id);
+      } else {
+        finalDireccionId = null;
+      }
+    } else if (ciudad_id && calle) {
+      // Crear una nueva dirección si se proporciona ciudad_id y calle
+      const ciudadExists = await Ciudad.findByPk(ciudad_id);
+      if (!ciudadExists) {
         res.status(404).json({
           success: false,
-          message: "Address not found"
+          message: "City not found"
         });
         return;
       }
+
+      // Crear la nueva dirección
+      const nuevaDireccion = await Direccion.create({
+        ciudad_id: Number(ciudad_id),
+        calle: calle,
+        numero: numero || 'S/N'
+      } as any);
+      
+      finalDireccionId = nuevaDireccion.direccion_id;
     }
 
     // Actualizar solo los campos proporcionados
@@ -459,7 +614,7 @@ export const updateEvent = async (
       duracion: duracion ?? event.duracion,
       cant_participantes: cant_participantes !== undefined ? Number(cant_participantes) : event.cant_participantes,
       restriccion_edad: restriccion_edad !== undefined ? Number(restriccion_edad) : event.restriccion_edad,
-      direccion_id: direccion_id !== undefined ? Number(direccion_id) : event.direccion_id,
+      direccion_id: finalDireccionId !== undefined ? finalDireccionId : event.direccion_id,
       usuario_id: usuario_id !== undefined ? Number(usuario_id) : event.usuario_id,
       calle: calle ?? event.calle,
       numero: numero ?? event.numero,
@@ -484,9 +639,28 @@ export const updateEvent = async (
       }
     }
 
-    // Obtener el evento actualizado con sus intereses
+    // Obtener el evento actualizado con sus intereses y dirección
     const updatedEvent = await Event.findByPk(Number(id), {
-      include: [{ model: Interes, as: 'intereses' }]
+      include: [
+        { model: Interes, as: 'intereses' },
+        {
+          model: Direccion,
+          required: false,
+          include: [
+            {
+              model: Ciudad,
+              required: false,
+              include: [
+                {
+                  model: Pais,
+                  required: false,
+                  as: 'pais'
+                }
+              ]
+            }
+          ]
+        }
+      ]
     });
 
     res.status(200).json({

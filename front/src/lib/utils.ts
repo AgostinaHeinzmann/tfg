@@ -61,3 +61,49 @@ export const clearAllLocalStorage = () => {
     console.error("Error al limpiar todo LocalStorage:", error);
   }
 };
+
+/**
+ * Geocodificar una dirección usando Nominatim (OpenStreetMap)
+ * Retorna coordenadas [lat, lng] o null si no se encuentra
+ */
+export const geocodeAddress = async (
+  address: string,
+  cityContext?: string
+): Promise<[number, number] | null> => {
+  if (!address || address.trim().length < 3) return null;
+  
+  try {
+    // Agregar contexto de ciudad si está disponible
+    const searchQuery = cityContext 
+      ? `${address}, ${cityContext}`
+      : address;
+    
+    const encodedQuery = encodeURIComponent(searchQuery);
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodedQuery}&limit=1`,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'TravelApp/1.0'
+        }
+      }
+    );
+    
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    
+    if (data && data.length > 0) {
+      const lat = parseFloat(data[0].lat);
+      const lon = parseFloat(data[0].lon);
+      if (!isNaN(lat) && !isNaN(lon)) {
+        return [lat, lon];
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error geocoding address:', error);
+    return null;
+  }
+};

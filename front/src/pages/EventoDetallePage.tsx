@@ -100,7 +100,6 @@ const EventoDetalleModal: React.FC<EventoDetalleModalProps> = ({ event: initialE
   const navigate = useNavigate()
   const [event, setEvent] = useState(initialEvent)
   const [loading, setLoading] = useState(false)
-  const [isJoined, setIsJoined] = useState(false)
   const [isJoining, setIsJoining] = useState(false)
   const [mapCoordinates, setMapCoordinates] = useState<[number, number]>([41.3851, 2.1734])
   
@@ -108,6 +107,25 @@ const EventoDetalleModal: React.FC<EventoDetalleModalProps> = ({ event: initialE
   const userData = loadFromLocalStorage("userData")
   const currentUserId = userData?.usuario_id
   const isHost = currentUserId && (event?.usuario_id === currentUserId || event?.creador_id === currentUserId)
+  
+  // Verificar si el usuario ya está inscrito
+  const checkIsJoined = (eventData: any) => {
+    if (!currentUserId) return false
+    if (eventData?.usuario_inscrito || eventData?.esta_inscrito || eventData?.isJoined) return true
+    // Verificar en inscripciones (como viene del backend)
+    if (eventData?.inscripciones && Array.isArray(eventData.inscripciones)) {
+      return eventData.inscripciones.some((ins: any) => ins.usuario_id === currentUserId)
+    }
+    if (eventData?.participantes && Array.isArray(eventData.participantes)) {
+      return eventData.participantes.some((p: any) => p.usuario_id === currentUserId || p.id === currentUserId)
+    }
+    if (eventData?.usuarios_eventos && Array.isArray(eventData.usuarios_eventos)) {
+      return eventData.usuarios_eventos.some((ue: any) => ue.usuario_id === currentUserId)
+    }
+    return false
+  }
+  
+  const [isJoined, setIsJoined] = useState(() => checkIsJoined(initialEvent))
 
   // Cargar detalles completos del evento y geocodificar si es necesario
   useEffect(() => {
@@ -120,6 +138,11 @@ const EventoDetalleModal: React.FC<EventoDetalleModalProps> = ({ event: initialE
         if (response.success && response.data) {
           const eventData = response.data
           setEvent(eventData)
+          
+          // Actualizar estado de inscripción desde los datos del evento
+          if (checkIsJoined(eventData)) {
+            setIsJoined(true)
+          }
           
           // Intentar obtener coordenadas del evento
           const coords = getEventCoordinates(eventData)
@@ -231,7 +254,7 @@ const EventoDetalleModal: React.FC<EventoDetalleModalProps> = ({ event: initialE
               className="w-full h-48 object-cover" 
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {isHost && (
               <Badge className="bg-indigo-600">
                 <span className="flex items-center gap-1">
@@ -240,9 +263,17 @@ const EventoDetalleModal: React.FC<EventoDetalleModalProps> = ({ event: initialE
                 </span>
               </Badge>
             )}
-            {(event?.categoria || event?.category || event?.interes?.tipo) && (
-              <Badge className="bg-gray-100 text-gray-800">
-                {event?.categoria || event?.category || event?.interes?.tipo}
+            {isJoined && !isHost && (
+              <Badge className="bg-green-600 text-white">
+                <span className="flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3" />
+                  Inscrito
+                </span>
+              </Badge>
+            )}
+            {(event?.categoria || event?.category || event?.interes?.tipo || event?.intereses) && (
+              <Badge className="bg-indigo-100 text-indigo-800">
+                {event?.categoria || event?.category || event?.interes?.tipo || (Array.isArray(event?.intereses) && event?.intereses[0]?.tipo ? event?.intereses[0].tipo : (typeof event?.intereses === 'string' ? event?.intereses : ''))}
               </Badge>
             )}
             {(event?.restriccion_edad || event?.ageRestriction) && <Badge className="bg-amber-500">+{event?.restriccion_edad || event?.minAge || 18}</Badge>}

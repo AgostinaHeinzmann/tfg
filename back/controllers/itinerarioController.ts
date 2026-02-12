@@ -64,13 +64,26 @@ export const searchItineraries = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { destination, duration, interests } = req.query;
+    const { destination, ciudad_id, pais_id, duration, interests } = req.query;
 
     // Construir el where clause
     let whereClause: any = {};
 
-    // Filtrar por ciudad (destino) - busca en nombre de ciudad o país
-    if (destination && destination !== '') {
+    // Filtrar por ubicación - prioridad: ciudad_id > pais_id > destination (texto)
+    if (ciudad_id && ciudad_id !== '') {
+      // Búsqueda por ciudad_id específico (dropdown)
+      const ciudadIdNum = parseInt(ciudad_id as string, 10);
+      if (!isNaN(ciudadIdNum)) {
+        whereClause.ciudad_id = ciudadIdNum;
+      }
+    } else if (pais_id && pais_id !== '') {
+      // Búsqueda por pais_id - buscar todas las ciudades del país
+      const paisIdNum = parseInt(pais_id as string, 10);
+      if (!isNaN(paisIdNum)) {
+        whereClause['$ciudad.pais_id$'] = paisIdNum;
+      }
+    } else if (destination && destination !== '') {
+      // Búsqueda por texto (nombre de ciudad o país)
       whereClause[Op.or] = [
         { '$ciudad.nombre$': { [Op.iLike]: `%${destination}%` } },
         { '$ciudad.pais.nombre$': { [Op.iLike]: `%${destination}%` } }

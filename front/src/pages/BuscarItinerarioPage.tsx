@@ -1,17 +1,19 @@
 import type React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
-import { MapPin, Palette, Utensils, Music, Mountain, Waves, Moon, Clock, Loader2 } from "lucide-react"
+import { MapPin, Palette, Utensils, Music, Mountain, Waves, Moon, Clock, Loader2, Search, X, Globe } from "lucide-react"
 import ItinerarioResultadoPage from "./ItinerarioResultadoPage"
 import { Dialog, DialogTrigger } from "@radix-ui/react-dialog"
 import { DialogContent } from "@/components/ui/dialog"
 import { searchItineraries, saveItineraryToProfile, getPopularItineraries, getItineraryDays } from "@/services/itinerarioService"
+import { getFilters } from "@/services/filtrosService"
 import { showToast } from "@/lib/toast-utils"
+import { geocodeAddress } from "@/lib/utils"
 import { auth } from "../../firebase/firebase.config"
 
 
@@ -24,9 +26,20 @@ const BuscarItinerarioPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false)
   const [popularItineraries, setPopularItineraries] = useState<any[]>([])
   const [loadingPopular, setLoadingPopular] = useState(true)
-  const [loadingItinerary, setLoadingItinerary] = useState(false)
+  const [loadingItineraryId, setLoadingItineraryId] = useState<number | null>(null)
   const [isFromPopular, setIsFromPopular] = useState(false)
   const resultsRef = useRef<HTMLDivElement>(null)
+
+  // Estados para filtro de ubicación
+  const [ciudades, setCiudades] = useState<Array<{ id: number; nombre: string }>>([])
+  const [paises, setPaises] = useState<Array<{ id: number; nombre: string }>>([])
+  const [locationSearchQuery, setLocationSearchQuery] = useState("")
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false)
+  const [selectedCiudadId, setSelectedCiudadId] = useState<number | null>(null)
+  const [selectedCiudadNombre, setSelectedCiudadNombre] = useState<string>("")
+  const [selectedPaisId, setSelectedPaisId] = useState<number | null>(null)
+  const [selectedPaisNombre, setSelectedPaisNombre] = useState<string>("")
+  const [locationType, setLocationType] = useState<"ciudad" | "pais">("ciudad")
 
   // Mapa de coordenadas de ciudades conocidas
   const cityCoordinates: { [key: string]: [number, number] } = {
@@ -78,6 +91,84 @@ const BuscarItinerarioPage: React.FC = () => {
     { id: "vida-nocturna", name: "Vida nocturna", icon: Moon },
   ]
 
+  // Filtrar ciudades según búsqueda
+  const filteredCiudades = useMemo(() => {
+    if (!locationSearchQuery.trim()) return ciudades.slice(0, 20)
+    const query = locationSearchQuery.toLowerCase()
+    return ciudades.filter(
+      city => city.nombre.toLowerCase().includes(query)
+    ).slice(0, 20)
+  }, [locationSearchQuery, ciudades])
+
+  // Filtrar países según búsqueda
+  const filteredPaises = useMemo(() => {
+    if (!locationSearchQuery.trim()) return paises.slice(0, 20)
+    const query = locationSearchQuery.toLowerCase()
+    return paises.filter(
+      pais => pais.nombre.toLowerCase().includes(query)
+    ).slice(0, 20)
+  }, [locationSearchQuery, paises])
+
+  // Cargar ciudades y países del backend
+  useEffect(() => {
+    const loadFilters = async () => {
+      try {
+        const response: any = await getFilters()
+        if (response.success && response.data) {
+          setCiudades(response.data.ciudades || [])
+          setPaises(response.data.paises || [])
+        }
+      } catch (error) {
+        console.error("Error loading filters:", error)
+      }
+    }
+    loadFilters()
+  }, [])
+
+  // Cerrar dropdown al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (!target.closest('.location-dropdown-container')) {
+        setShowLocationDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Seleccionar ciudad
+  const selectCiudad = (cityId: number, cityName: string) => {
+    setSelectedCiudadId(cityId)
+    setSelectedCiudadNombre(cityName)
+    setSelectedPaisId(null)
+    setSelectedPaisNombre("")
+    setDestination("")
+    setLocationSearchQuery("")
+    setShowLocationDropdown(false)
+  }
+
+  // Seleccionar país
+  const selectPais = (paisId: number, paisName: string) => {
+    setSelectedPaisId(paisId)
+    setSelectedPaisNombre(paisName)
+    setSelectedCiudadId(null)
+    setSelectedCiudadNombre("")
+    setDestination("")
+    setLocationSearchQuery("")
+    setShowLocationDropdown(false)
+  }
+
+  // Limpiar ubicación seleccionada
+  const clearLocation = () => {
+    setSelectedCiudadId(null)
+    setSelectedCiudadNombre("")
+    setSelectedPaisId(null)
+    setSelectedPaisNombre("")
+    setDestination("")
+    setLocationSearchQuery("")
+  }
+
   // Cargar itinerarios populares al montar el componente
   useEffect(() => {
     const loadPopularItineraries = async () => {
@@ -127,10 +218,10 @@ const BuscarItinerarioPage: React.FC = () => {
 
   // Función para cargar los días del itinerario y abrir el modal
   const handleViewItinerary = async (itinerary: any, fromPopular: boolean = false) => {
+    const itinerarioId = itinerary.id || itinerary.itinerario_id
     try {
-      setLoadingItinerary(true)
+      setLoadingItineraryId(itinerarioId)
       setIsFromPopular(fromPopular)
-      const itinerarioId = itinerary.id || itinerary.itinerario_id
       
       // Obtener coordenadas de la ciudad del itinerario
       const cityName = itinerary.ciudad_nombre || itinerary.ciudad?.nombre || itinerary.destination || ''
@@ -142,9 +233,14 @@ const BuscarItinerarioPage: React.FC = () => {
       // Transformar los datos de itinerario_por_dia al formato esperado
       const daysData = response.data || []
       
-      // Agrupar actividades por día
-      const dayMap = new Map<number, any[]>()
-      daysData.forEach((item: any) => {
+      // Función auxiliar para verificar si las coordenadas son las de la ciudad
+      const areCityCoordsEqual = (coords: [number, number]) => {
+        return Math.abs(coords[0] - cityCoords[0]) < 0.001 && 
+               Math.abs(coords[1] - cityCoords[1]) < 0.001
+      }
+      
+      // Procesar actividades y geocodificar direcciones
+      const processActivity = async (item: any) => {
         // Extraer el número del día del nombre (ej: "Día 1: Centro Histórico" -> 1)
         const dayMatch = item.nombre?.match(/Día\s*(\d+)/i)
         const dayNumber = dayMatch ? parseInt(dayMatch[1]) : 1
@@ -155,28 +251,55 @@ const BuscarItinerarioPage: React.FC = () => {
           ? `${direccionObj.calle || ''} ${direccionObj.numero || ''}`.trim()
           : (typeof item.direccion === 'string' ? item.direccion : '')
         
-        // Usar coordenadas de la ciudad como fallback
-        const activityCoords: [number, number] = [
+        // Usar coordenadas de la ciudad como fallback inicial
+        let activityCoords: [number, number] = [
           item.latitud || item.lat || cityCoords[0],
           item.longitud || item.lng || cityCoords[1]
         ]
         
-        const activity = {
-          id: item.itinerario_por_dia_id?.toString() || item.id?.toString(),
-          title: item.nombre?.replace(/Día\s*\d+:\s*/i, '') || item.nombre || 'Actividad',
-          description: item.descripcion || '',
-          location: item.direccion_nombre || item.nombre?.replace(/Día\s*\d+:\s*/i, '') || '',
-          address: item.direccion_completa || addressString || '',
-          coordinates: activityCoords,
-          time: item.hora || '09:00',
-          duration: item.duracion || '2 horas',
-          price: item.precio || null,
-          ticketUrl: item.enlace_oficial || item.ticketUrl,
-          imageUrl: item.imagen || '/placeholder.svg',
-          rating: item.rating || 4.5,
-          type: (item.tipo || item.interes?.toLowerCase().includes('museo') ? 'museo' : 'atracción') as "museo" | "atracción" | "transporte" | "descanso"
+        // Obtener dirección completa para geocodificación
+        const fullAddress = item.direccion_completa || addressString || item.direccion_nombre || ''
+        
+        // Si tiene dirección y las coordenadas son las de la ciudad, intentar geocodificar
+        if (fullAddress && areCityCoordsEqual(activityCoords)) {
+          try {
+            const geocodedCoords = await geocodeAddress(fullAddress, cityName)
+            if (geocodedCoords) {
+              activityCoords = geocodedCoords
+            }
+          } catch (e) {
+            // Mantener coordenadas de la ciudad si falla
+          }
         }
         
+        return {
+          dayNumber,
+          activity: {
+            id: item.itinerario_por_dia_id?.toString() || item.id?.toString(),
+            title: item.nombre?.replace(/Día\s*\d+:\s*/i, '') || item.nombre || 'Actividad',
+            description: item.descripcion || '',
+            location: item.direccion_nombre || item.nombre?.replace(/Día\s*\d+:\s*/i, '') || '',
+            address: item.direccion_completa || addressString || '',
+            coordinates: activityCoords,
+            time: item.hora || '09:00',
+            duration: item.duracion || '2 horas',
+            price: item.precio || null,
+            ticketUrl: item.enlace_oficial || item.ticketUrl,
+            imageUrl: item.imagen || '/placeholder.svg',
+            rating: item.rating || 4.5,
+            type: (item.tipo || item.interes?.toLowerCase().includes('museo') ? 'museo' : 'atracción') as "museo" | "atracción" | "transporte" | "descanso"
+          }
+        }
+      }
+      
+      // Procesar todas las actividades en paralelo (con límite para no saturar la API)
+      const processedItems = await Promise.all(
+        daysData.map((item: any) => processActivity(item))
+      )
+      
+      // Agrupar actividades por día
+      const dayMap = new Map<number, any[]>()
+      processedItems.forEach(({ dayNumber, activity }) => {
         if (!dayMap.has(dayNumber)) {
           dayMap.set(dayNumber, [])
         }
@@ -206,13 +329,14 @@ const BuscarItinerarioPage: React.FC = () => {
       setSelectedItinerary(itinerary)
       setShowModal(true)
     } finally {
-      setLoadingItinerary(false)
+      setLoadingItineraryId(null)
     }
   }
 
   const handleGenerateItinerary = async () => {
-    if (!destination) {
-      showToast.warning("Destino requerido", "Por favor ingresa un destino para buscar itinerarios")
+    // Validar que haya una ubicación (ciudad, país o texto libre)
+    if (!selectedCiudadId && !selectedPaisId && !destination) {
+      showToast.warning("Destino requerido", "Por favor selecciona una ciudad, país o ingresa un destino")
       return
     }
 
@@ -222,10 +346,18 @@ const BuscarItinerarioPage: React.FC = () => {
     }
 
     try {
-      const filters = {
-        destination,
+      const filters: any = {
         duration: `${duration[0]} ${duration[0] === 1 ? 'día' : 'días'}`,
         interests: selectedInterests.join(',')
+      }
+
+      // Prioridad: ciudad_id > pais_id > destination
+      if (selectedCiudadId) {
+        filters.ciudad_id = selectedCiudadId
+      } else if (selectedPaisId) {
+        filters.pais_id = selectedPaisId
+      } else if (destination) {
+        filters.destination = destination
       }
 
       const response: any = await searchItineraries(filters)
@@ -294,22 +426,109 @@ const BuscarItinerarioPage: React.FC = () => {
             <p className="text-gray-600">Configura los detalles de tu viaje para generar un itinerario personalizado</p>
           </CardHeader>
           <CardContent className="space-y-8">
-            {/* Destination */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="destination" className="text-base font-medium">
-                  Destino
-                </Label>
+            {/* Destination - Selector de ubicación */}
+            <div className="space-y-4">
+              <Label className="text-base font-medium">Destino</Label>
+              
+              {/* Ubicación seleccionada */}
+              {(selectedCiudadNombre || selectedPaisNombre) && (
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge className="bg-indigo-600 text-white px-3 py-1.5 flex items-center gap-1">
+                    {selectedCiudadNombre ? (
+                      <><MapPin className="h-3 w-3" />{selectedCiudadNombre}</>
+                    ) : (
+                      <><Globe className="h-3 w-3" />{selectedPaisNombre}</>
+                    )}
+                    <X 
+                      className="h-3 w-3 ml-1 cursor-pointer" 
+                      onClick={clearLocation}
+                    />
+                  </Badge>
+                </div>
+              )}
+
+              {/* Tabs para ciudad/país */}
+              <div className="flex gap-2 mb-2">
+                <Button
+                  type="button"
+                  variant={locationType === "ciudad" ? "default" : "outline"}
+                  size="sm"
+                  className={locationType === "ciudad" ? "bg-indigo-600 hover:bg-indigo-700" : "border-indigo-200 text-indigo-700"}
+                  onClick={() => setLocationType("ciudad")}
+                >
+                  <MapPin className="h-4 w-4 mr-1" />
+                  Ciudad
+                </Button>
+                <Button
+                  type="button"
+                  variant={locationType === "pais" ? "default" : "outline"}
+                  size="sm"
+                  className={locationType === "pais" ? "bg-indigo-600 hover:bg-indigo-700" : "border-indigo-200 text-indigo-700"}
+                  onClick={() => setLocationType("pais")}
+                >
+                  <Globe className="h-4 w-4 mr-1" />
+                  País
+                </Button>
+              </div>
+
+              {/* Dropdown de ciudades/países */}
+              <div className="relative location-dropdown-container">
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
-                    id="destination"
-                    placeholder="Ciudad, país o región"
-                    className="pl-10"
-                    value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
+                    placeholder={locationType === "ciudad" ? "Buscar ciudad..." : "Buscar país..."}
+                    value={locationSearchQuery}
+                    onChange={(e) => {
+                      setLocationSearchQuery(e.target.value)
+                      setShowLocationDropdown(true)
+                    }}
+                    onFocus={() => setShowLocationDropdown(true)}
+                    className="pl-10 pr-4 bg-gray-50 border-gray-200"
                   />
                 </div>
+                {showLocationDropdown && locationSearchQuery && (
+                  <div className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-lg">
+                    {locationType === "ciudad" ? (
+                      <>
+                        {filteredCiudades.map((city) => (
+                          <button
+                            key={city.id}
+                            type="button"
+                            className="w-full text-left px-4 py-2 hover:bg-indigo-50 flex items-center gap-2 transition-colors"
+                            onClick={() => selectCiudad(city.id, city.nombre)}
+                          >
+                            <MapPin className="h-4 w-4 text-gray-400" />
+                            <span className="font-medium">{city.nombre}</span>
+                          </button>
+                        ))}
+                        {filteredCiudades.length === 0 && (
+                          <div className="px-4 py-3 text-gray-500 text-center">
+                            No se encontraron ciudades
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {filteredPaises.map((pais) => (
+                          <button
+                            key={pais.id}
+                            type="button"
+                            className="w-full text-left px-4 py-2 hover:bg-indigo-50 flex items-center gap-2 transition-colors"
+                            onClick={() => selectPais(pais.id, pais.nombre)}
+                          >
+                            <Globe className="h-4 w-4 text-gray-400" />
+                            <span className="font-medium">{pais.nombre}</span>
+                          </button>
+                        ))}
+                        {filteredPaises.length === 0 && (
+                          <div className="px-4 py-3 text-gray-500 text-center">
+                            No se encontraron países
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -354,7 +573,7 @@ const BuscarItinerarioPage: React.FC = () => {
             <Button
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-lg py-6"
               onClick={handleGenerateItinerary}
-              disabled={!destination || selectedInterests.length === 0}
+              disabled={(!destination && !selectedCiudadId && !selectedPaisId) || selectedInterests.length === 0}
             >
               Buscar itinerario
             </Button>
@@ -394,9 +613,9 @@ const BuscarItinerarioPage: React.FC = () => {
                         variant="outline"
                         className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
                         onClick={() => handleViewItinerary(result)}
-                        disabled={loadingItinerary}
+                        disabled={loadingItineraryId === (result.id || result.itinerario_id)}
                       >
-                        {loadingItinerary ? (
+                        {loadingItineraryId === (result.id || result.itinerario_id) ? (
                           <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Cargando...</>
                         ) : (
                           'Ver itinerario'
@@ -450,9 +669,9 @@ const BuscarItinerarioPage: React.FC = () => {
                     variant="outline"
                     className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
                     onClick={() => handleViewItinerary(itinerary, true)}
-                    disabled={loadingItinerary}
+                    disabled={loadingItineraryId === (itinerary.id || itinerary.itinerario_id)}
                   >
-                    {loadingItinerary ? (
+                    {loadingItineraryId === (itinerary.id || itinerary.itinerario_id) ? (
                       <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Cargando...</>
                     ) : (
                       'Ver itinerario'
@@ -478,8 +697,16 @@ const BuscarItinerarioPage: React.FC = () => {
       </div>
       {/* Modal con el resultado */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="max-w-3xl p-0">
-          <div className="max-h-[80vh] overflow-y-auto px-4 py-6">
+        <DialogContent className="max-w-4xl p-0 max-h-[90vh] overflow-hidden [&>button]:hidden">
+          <div className="absolute right-3 top-3 z-50">
+            <button
+              onClick={() => setShowModal(false)}
+              className="rounded-full bg-white/90 hover:bg-white p-2 shadow-md transition-colors"
+            >
+              <X className="h-5 w-5 text-gray-700" />
+            </button>
+          </div>
+          <div className="max-h-[90vh] overflow-y-auto">
             <ItinerarioResultadoPage
               itinerary={selectedItinerary}
               onClose={handleModifySearch}

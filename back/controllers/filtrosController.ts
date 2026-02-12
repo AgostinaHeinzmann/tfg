@@ -23,9 +23,9 @@ export const getFilters = async (
       order: [['nombre', 'ASC']]
     });
 
-    // Obtener todas las ciudades
+    // Obtener todas las ciudades con pais_id para filtrar en el frontend
     const ciudades = await Ciudad.findAll({
-      attributes: [['ciudad_id', 'id'], 'nombre'],
+      attributes: [['ciudad_id', 'id'], 'nombre', 'pais_id'],
       order: [['nombre', 'ASC']]
     });
 
@@ -66,4 +66,41 @@ export const getFilters = async (
   }
 };
 
+// Obtener ciudades filtradas por país
+export const getCiudadesByPais = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { pais_id } = req.params;
 
+    if (!pais_id || isNaN(Number(pais_id))) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid pais_id"
+      });
+      return;
+    }
+
+    const ciudades = await Ciudad.findAll({
+      where: { pais_id: Number(pais_id) },
+      attributes: [['ciudad_id', 'id'], 'nombre', 'pais_id'],
+      order: [['nombre', 'ASC']]
+    });
+
+    res.status(200).json({
+      success: true,
+      data: ciudades
+    });
+
+  } catch (error) {
+    console.error('Error fetching cities by country:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: "Error fetching cities",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+};

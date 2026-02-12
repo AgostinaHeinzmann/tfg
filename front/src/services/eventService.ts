@@ -2,6 +2,8 @@ import { client } from '../axios/axios.config'
 
 export interface EventFilters {
   location?: string
+  ciudad_id?: number
+  pais_id?: number
   interests?: string
   ageGroup?: number
   date?: string
@@ -19,6 +21,7 @@ export interface CreateEventData {
   restriccion_edad?: number
   direccion_id?: number
   usuario_id: number
+  ciudad_id?: number
   calle?: string
   numero?: string
   latitud?: number
@@ -39,6 +42,8 @@ export const getAllEvents = async (filters?: EventFilters) => {
     const params = new URLSearchParams()
 
     if (filters?.location) params.append('location', filters.location)
+    if (filters?.ciudad_id) params.append('ciudad_id', filters.ciudad_id.toString())
+    if (filters?.pais_id) params.append('pais_id', filters.pais_id.toString())
     if (filters?.interests) params.append('interests', filters.interests)
     if (filters?.ageGroup !== undefined) params.append('ageGroup', filters.ageGroup.toString())
     if (filters?.date) params.append('date', filters.date)

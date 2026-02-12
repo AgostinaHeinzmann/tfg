@@ -6,7 +6,7 @@ import { Input } from "../components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
 import { Avatar, AvatarFallback } from "../components/ui/avatar"
-import { Calendar, MapPin, Clock, Users, Plus, CheckCircle, Eye, Loader2, Search, X } from "lucide-react"
+import { Calendar, MapPin, Clock, Users, Plus, CheckCircle, Eye, Loader2, Search, X, Globe } from "lucide-react"
 import EventoDetalleModal from "./EventoDetallePage"
 import { showToast } from "../lib/toast-utils"
 import { loadFromLocalStorage } from "../lib/utils"
@@ -50,11 +50,15 @@ const EventosPage: React.FC = () => {
     intereses: Array<{ id: number; tipo: string }>
     ageGroups: Array<{ id: number; label: string }>
   }>({ intereses: [], ageGroups: [] })
-  const [ciudades, setCiudades] = useState<Array<{ id: number; nombre: string }>>([])
+  const [ciudades, setCiudades] = useState<Array<{ id: number; nombre: string; pais_id?: number }>>([])
+  const [paises, setPaises] = useState<Array<{ id: number; nombre: string }>>([])
   const [filterCityQuery, setFilterCityQuery] = useState("")
   const [selectedFilterCityId, setSelectedFilterCityId] = useState<number | null>(null)
   const [selectedFilterCityName, setSelectedFilterCityName] = useState<string>("")
+  const [selectedFilterPaisId, setSelectedFilterPaisId] = useState<number | null>(null)
+  const [selectedFilterPaisName, setSelectedFilterPaisName] = useState<string>("")
   const [showFilterCityDropdown, setShowFilterCityDropdown] = useState(false)
+  const [locationType, setLocationType] = useState<"ciudad" | "pais">("ciudad")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedAgeGroup, setSelectedAgeGroup] = useState<number | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -68,6 +72,15 @@ const EventosPage: React.FC = () => {
     ).slice(0, 20)
   }, [filterCityQuery, ciudades])
 
+  // Filtrar paises según búsqueda para el filtro
+  const filteredPaisesForFilter = useMemo(() => {
+    if (!filterCityQuery.trim()) return paises.slice(0, 20)
+    const query = filterCityQuery.toLowerCase()
+    return paises.filter(
+      pais => pais.nombre.toLowerCase().includes(query)
+    ).slice(0, 20)
+  }, [filterCityQuery, paises])
+
   // Cargar filtros disponibles
   useEffect(() => {
     const loadFilters = async () => {
@@ -79,6 +92,7 @@ const EventosPage: React.FC = () => {
             ageGroups: response.data.ageGroups || []
           })
           setCiudades(response.data.ciudades || [])
+          setPaises(response.data.paises || [])
         }
       } catch (error) {
         console.error("Error loading filters:", error)
@@ -87,18 +101,53 @@ const EventosPage: React.FC = () => {
     loadFilters()
   }, [])
 
+  // Cerrar dropdown al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (!target.closest('.location-dropdown-container')) {
+        setShowFilterCityDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   // Seleccionar ciudad para el filtro
   const selectFilterCity = (cityId: number, cityName: string) => {
     setSelectedFilterCityId(cityId)
     setSelectedFilterCityName(cityName)
+    setSelectedFilterPaisId(null)
+    setSelectedFilterPaisName("")
     setFilterCityQuery("")
     setShowFilterCityDropdown(false)
+  }
+
+  // Seleccionar pais para el filtro
+  const selectFilterPais = (paisId: number, paisName: string) => {
+    setSelectedFilterPaisId(paisId)
+    setSelectedFilterPaisName(paisName)
+    setSelectedFilterCityId(null)
+    setSelectedFilterCityName("")
+    setFilterCityQuery("")
+    setShowFilterCityDropdown(false)
+  }
+
+  // Limpiar ubicación seleccionada
+  const clearLocation = () => {
+    setSelectedFilterCityId(null)
+    setSelectedFilterCityName("")
+    setSelectedFilterPaisId(null)
+    setSelectedFilterPaisName("")
+    setFilterCityQuery("")
   }
 
   // Limpiar filtros
   const clearFilters = () => {
     setSelectedFilterCityId(null)
     setSelectedFilterCityName("")
+    setSelectedFilterPaisId(null)
+    setSelectedFilterPaisName("")
     setFilterCityQuery("")
     setSelectedCategory(null)
     setSelectedAgeGroup(null)
@@ -129,7 +178,12 @@ const EventosPage: React.FC = () => {
   // Aplicar filtros
   const handleApplyFilters = () => {
     const newFilters: EventFilters = {}
-    if (selectedFilterCityName) newFilters.location = selectedFilterCityName
+    // Usar ciudad_id o pais_id según lo seleccionado
+    if (selectedFilterCityId) {
+      newFilters.ciudad_id = selectedFilterCityId
+    } else if (selectedFilterPaisId) {
+      newFilters.pais_id = selectedFilterPaisId
+    }
     if (selectedCategory) newFilters.interests = selectedCategory
     if (selectedAgeGroup !== null) newFilters.ageGroup = selectedAgeGroup
     if (selectedDate) newFilters.date = selectedDate
@@ -163,28 +217,53 @@ const EventosPage: React.FC = () => {
                   <div className="space-y-2">
                     <div className="font-medium">Ubicación</div>
                     
-                    {/* Ciudad seleccionada */}
-                    {selectedFilterCityName && (
+                    {/* Ubicación seleccionada */}
+                    {(selectedFilterCityName || selectedFilterPaisName) && (
                       <div className="mb-2">
-                        <Badge className="bg-indigo-600 text-white px-3 py-1.5">
-                          {selectedFilterCityName}
+                        <Badge className="bg-indigo-600 text-white px-3 py-1.5 flex items-center gap-1 w-fit">
+                          {selectedFilterCityName ? (
+                            <><MapPin className="h-3 w-3" />{selectedFilterCityName}</>
+                          ) : (
+                            <><Globe className="h-3 w-3" />{selectedFilterPaisName}</>
+                          )}
                           <X 
                             className="h-3 w-3 ml-1 cursor-pointer" 
-                            onClick={() => {
-                              setSelectedFilterCityId(null)
-                              setSelectedFilterCityName("")
-                            }}
+                            onClick={clearLocation}
                           />
                         </Badge>
                       </div>
                     )}
+
+                    {/* Tabs para ciudad/país */}
+                    <div className="flex gap-2 mb-2">
+                      <Button
+                        type="button"
+                        variant={locationType === "ciudad" ? "default" : "outline"}
+                        size="sm"
+                        className={locationType === "ciudad" ? "bg-indigo-600 hover:bg-indigo-700" : "border-indigo-200 text-indigo-700"}
+                        onClick={() => setLocationType("ciudad")}
+                      >
+                        <MapPin className="h-4 w-4 mr-1" />
+                        Ciudad
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={locationType === "pais" ? "default" : "outline"}
+                        size="sm"
+                        className={locationType === "pais" ? "bg-indigo-600 hover:bg-indigo-700" : "border-indigo-200 text-indigo-700"}
+                        onClick={() => setLocationType("pais")}
+                      >
+                        <Globe className="h-4 w-4 mr-1" />
+                        País
+                      </Button>
+                    </div>
                     
-                    {/* Dropdown para seleccionar ciudad */}
-                    <div className="relative">
+                    {/* Dropdown para seleccionar ciudad/país */}
+                    <div className="relative location-dropdown-container">
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input
-                          placeholder="Buscar ciudad..."
+                          placeholder={locationType === "ciudad" ? "Buscar ciudad..." : "Buscar país..."}
                           value={filterCityQuery}
                           onChange={(e) => {
                             setFilterCityQuery(e.target.value)
@@ -196,19 +275,44 @@ const EventosPage: React.FC = () => {
                       </div>
                       {showFilterCityDropdown && filterCityQuery && (
                         <div className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-lg">
-                          {filteredCitiesForFilter.map((city) => (
-                            <button
-                              key={city.id}
-                              className="w-full text-left px-4 py-2 hover:bg-indigo-50 flex items-center justify-between transition-colors"
-                              onClick={() => selectFilterCity(city.id, city.nombre)}
-                            >
-                              <span className="font-medium">{city.nombre}</span>
-                            </button>
-                          ))}
-                          {filteredCitiesForFilter.length === 0 && (
-                            <div className="px-4 py-3 text-gray-500 text-center">
-                              No se encontraron ciudades
-                            </div>
+                          {locationType === "ciudad" ? (
+                            <>
+                              {filteredCitiesForFilter.map((city) => (
+                                <button
+                                  key={city.id}
+                                  type="button"
+                                  className="w-full text-left px-4 py-2 hover:bg-indigo-50 flex items-center gap-2 transition-colors"
+                                  onClick={() => selectFilterCity(city.id, city.nombre)}
+                                >
+                                  <MapPin className="h-4 w-4 text-gray-400" />
+                                  <span className="font-medium">{city.nombre}</span>
+                                </button>
+                              ))}
+                              {filteredCitiesForFilter.length === 0 && (
+                                <div className="px-4 py-3 text-gray-500 text-center">
+                                  No se encontraron ciudades
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              {filteredPaisesForFilter.map((pais) => (
+                                <button
+                                  key={pais.id}
+                                  type="button"
+                                  className="w-full text-left px-4 py-2 hover:bg-indigo-50 flex items-center gap-2 transition-colors"
+                                  onClick={() => selectFilterPais(pais.id, pais.nombre)}
+                                >
+                                  <Globe className="h-4 w-4 text-gray-400" />
+                                  <span className="font-medium">{pais.nombre}</span>
+                                </button>
+                              ))}
+                              {filteredPaisesForFilter.length === 0 && (
+                                <div className="px-4 py-3 text-gray-500 text-center">
+                                  No se encontraron países
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       )}
@@ -308,7 +412,7 @@ const EventosPage: React.FC = () => {
 
                   <div className="flex flex-col gap-2">
                     <Button className="w-full" onClick={handleApplyFilters}>Aplicar filtros</Button>
-                    {(selectedFilterCityName || selectedCategory || selectedAgeGroup !== null || selectedDate) && (
+                    {(selectedFilterCityName || selectedFilterPaisName || selectedCategory || selectedAgeGroup !== null || selectedDate) && (
                       <Button variant="outline" className="w-full text-gray-600" onClick={clearFilters}>
                         <X className="h-4 w-4 mr-2" />
                         Limpiar filtros
@@ -357,6 +461,27 @@ function EventCard({ event, onEventUpdate }: { event: any; onEventUpdate: () => 
   const userData = loadFromLocalStorage("userData")
   const currentUserId = userData?.usuario_id
   const isHost = currentUserId && (event.usuario_id === currentUserId || event.creador_id === currentUserId)
+  
+  // Verificar si el usuario ya está inscrito en el evento
+  // Buscar en la lista de participantes o en campos directos del evento
+  const isJoined = (() => {
+    if (!currentUserId) return false
+    // Verificar campos directos
+    if (event.usuario_inscrito || event.esta_inscrito || event.isJoined) return true
+    // Verificar en inscripciones (como viene del backend)
+    if (event.inscripciones && Array.isArray(event.inscripciones)) {
+      return event.inscripciones.some((ins: any) => ins.usuario_id === currentUserId)
+    }
+    // Verificar en la lista de participantes
+    if (event.participantes && Array.isArray(event.participantes)) {
+      return event.participantes.some((p: any) => p.usuario_id === currentUserId || p.id === currentUserId)
+    }
+    // Verificar en usuarios_eventos
+    if (event.usuarios_eventos && Array.isArray(event.usuarios_eventos)) {
+      return event.usuarios_eventos.some((ue: any) => ue.usuario_id === currentUserId)
+    }
+    return false
+  })()
 
   const handleOpenModal = () => {
     setModalOpen(true)
@@ -411,7 +536,7 @@ function EventCard({ event, onEventUpdate }: { event: any; onEventUpdate: () => 
             alt={event.nombre_evento || event.title} 
             className="w-full h-full object-cover" 
           />
-          <div className="absolute top-3 right-3">
+          <div className="absolute top-3 right-3 flex gap-2">
             {isHost && (
               <Badge className="bg-indigo-600">
                 <span className="flex items-center gap-1">
@@ -420,19 +545,25 @@ function EventCard({ event, onEventUpdate }: { event: any; onEventUpdate: () => 
                 </span>
               </Badge>
             )}
-          </div>
-          <div className="absolute top-3 left-3">
-            {(event.categoria || event.category || event.interes?.tipo) && (
-              <Badge className="bg-white/90 text-indigo-800">
-                {event.categoria || event.category || event.interes?.tipo}
+            {isJoined && !isHost && (
+              <Badge className="bg-green-600">
+                <span className="flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3" />
+                  Inscrito
+                </span>
               </Badge>
             )}
           </div>
-          {(event.restriccion_edad || event.ageRestriction) && (
-            <div className="absolute bottom-3 left-3">
+          <div className="absolute bottom-3 left-3 flex gap-2">
+            {(event.categoria || event.category || event.interes?.tipo || event.intereses) && (
+              <Badge className="bg-indigo-600 text-white">
+                {event.categoria || event.category || event.interes?.tipo || (Array.isArray(event.intereses) && event.intereses[0]?.tipo ? event.intereses[0].tipo : (typeof event.intereses === 'string' ? event.intereses : ''))}
+              </Badge>
+            )}
+            {(event.restriccion_edad || event.ageRestriction) && (
               <Badge className="bg-amber-500">+{event.restriccion_edad || event.minAge || 18}</Badge>
-            </div>
-          )}
+            )}
+          </div>
         </div>
         <CardContent className="p-4">
           <h3 className="font-bold text-lg text-indigo-900 mb-2">{event.nombre_evento || event.title}</h3>
@@ -475,19 +606,28 @@ function EventCard({ event, onEventUpdate }: { event: any; onEventUpdate: () => 
           <div className="flex gap-2">
             <Button 
               variant="outline" 
-              className={`${isHost ? 'w-full' : 'flex-1'} border-indigo-200 text-indigo-700 hover:bg-indigo-50`} 
+              className={`${isHost || isJoined ? 'w-full' : 'flex-1'} border-indigo-200 text-indigo-700 hover:bg-indigo-50`} 
               onClick={handleOpenModal}
             >
               <Eye className="h-4 w-4 mr-2" />
               Ver evento
             </Button>
-            {!isHost && (
+            {!isHost && !isJoined && (
               <Button
                 className="flex-1 bg-indigo-600 hover:bg-indigo-700"
                 onClick={handleJoin}
                 disabled={isJoining}
               >
                 {isJoining ? <Loader2 className="h-4 w-4 animate-spin" /> : "Unirse"}
+              </Button>
+            )}
+            {!isHost && isJoined && (
+              <Button
+                className="flex-1 bg-green-600 hover:bg-green-600 cursor-default"
+                disabled
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Inscrito
               </Button>
             )}
           </div>

@@ -276,7 +276,7 @@ const Navbar: React.FC = () => {
             <div className="flex items-center space-x-3">
               <Button 
                 variant="ghost" 
-                className="hidden sm:flex text-white hover:bg-white/10"
+                className="hidden sm:flex text-white hover:bg-white/10 hover:text-white"
                 onClick={() => navigate("/login")}
               >
                 <LogIn className="mr-2 h-4 w-4" />

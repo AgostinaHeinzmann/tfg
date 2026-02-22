@@ -45,7 +45,7 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
   const params = useParams<{ id: string }>()
   const id = props.id || params.id
   const navigate = useNavigate()
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [newMessage, setNewMessage] = useState("")
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -53,6 +53,13 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
   const [chatInfo, setChatInfo] = useState<ChatInfo | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const lastMessageIdRef = useRef<number | null>(null)
+
+  // Scroll al final del contenedor de mensajes
+  const scrollToBottom = useCallback(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
+    }
+  }, [])
 
   // Obtener usuario actual desde localStorage
   const [currentUserId, setCurrentUserId] = useState<number | null>(null)
@@ -103,13 +110,7 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
       // Actualizar último mensaje ID para detectar nuevos mensajes
       if (transformedMessages.length > 0) {
         const lastMsgId = transformedMessages[transformedMessages.length - 1].id
-        if (lastMessageIdRef.current !== lastMsgId) {
-          lastMessageIdRef.current = lastMsgId
-          // Si hay mensajes nuevos y no es la carga inicial, hacer scroll
-          if (!isInitial) {
-            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-          }
-        }
+        lastMessageIdRef.current = lastMsgId
       }
 
       if (isInitial) {
@@ -117,6 +118,8 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
         // Marcar como leído al abrir el chat
         await markChatAsRead(Number(id))
         props.onMessagesRead?.()
+        // Scroll al final solo en carga inicial
+        setTimeout(scrollToBottom, 100)
       }
       
       setError(null)
@@ -147,13 +150,6 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
     return () => clearInterval(interval)
   }, [id, loading, currentUserId, fetchMessages])
 
-  // Auto-scroll al último mensaje en carga inicial
-  useEffect(() => {
-    if (!loading && messages.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-    }
-  }, [loading])
-
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (newMessage.trim() === "" || !id || sending) return
@@ -164,6 +160,8 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
       setNewMessage("")
       // Recargar mensajes para obtener el nuevo mensaje con toda la info
       await fetchMessages(false)
+      // Scroll al final después de enviar
+      setTimeout(scrollToBottom, 100)
     } catch (err) {
       console.error("Error sending message:", err)
       setError("Error al enviar el mensaje")
@@ -264,9 +262,9 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white flex flex-col">
+    <div className="h-[calc(100vh-64px)] bg-gradient-to-b from-indigo-50 to-white flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="bg-white border-b border-indigo-100 sticky top-0 z-10">
+      <header className="bg-white border-b border-indigo-100 z-10 flex-shrink-0">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -282,12 +280,12 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
         </div>
       </header>
 
-      <div className="flex-1 container mx-auto px-4 py-6 flex flex-col md:flex-row gap-6">
+      <div className="flex-1 container mx-auto px-4 py-6 flex flex-col md:flex-row gap-6 overflow-hidden">
         {/* Chat messages */}
-        <div className="flex-1 flex flex-col">
-          <div className="flex-1 bg-white rounded-lg border border-indigo-100 shadow-md flex flex-col">
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 bg-white rounded-lg border border-indigo-100 shadow-md flex flex-col min-h-0">
             {/* Messages container */}
-            <div className="flex-1 p-4 overflow-y-auto max-h-[calc(100vh-280px)]">
+            <div ref={messagesContainerRef} className="flex-1 p-4 overflow-y-auto">
               <div className="space-y-4">
                 {messages.length === 0 ? (
                   <div className="text-center text-gray-500 py-8">
@@ -332,7 +330,6 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
                     </div>
                   ))
                 )}
-                <div ref={messagesEndRef} />
               </div>
             </div>
 
@@ -359,8 +356,8 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
         </div>
 
         {/* Event info sidebar - only visible on desktop */}
-        <div className="hidden md:block w-80">
-          <Card className="border-indigo-100 shadow-md sticky top-24">
+        <div className="hidden md:block w-80 flex-shrink-0">
+          <Card className="border-indigo-100 shadow-md">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Información del evento</CardTitle>
             </CardHeader>
@@ -394,7 +391,7 @@ const EventoChatPage: React.FC<EventoChatPageProps> = (props) => {
                 <div className="flex items-center gap-2 text-gray-700">
                   <Users className="h-4 w-4 text-indigo-600" />
                   <span>
-                    {chatInfo?.participantes?.length || 0}/{chatInfo?.evento?.cant_participantes || "∞"} participantes
+                    {chatInfo?.evento?.participantes_actuales ?? 0}/{chatInfo?.evento?.cant_participantes || "∞"} participantes
                   </span>
                 </div>
               </div>

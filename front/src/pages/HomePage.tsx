@@ -34,14 +34,14 @@ const HomePage: React.FC = () => {
     {
       icon: Calendar,
       title: "Eventos Exclusivos",
-      description: "Descubre y únete a eventos oficiales",
-      details: "Descubre y únete a eventos oficiales o creados por otros viajeros que comparten tus intereses.",
+      description: "Descubre y únete a eventos",
+      details: "Descubre y únete a eventos creados por otros viajeros que comparten tus intereses.",
       color: "from-violet-400 to-purple-500"
     },
     {
       icon: Shield,
       title: "Sistema de Seguridad",
-      description: "Verificación de identidad para eventos",
+      description: "Verificación de edad para eventos",
       details: "Sistema de escaneo de DNI y validación de edad para garantizar la seguridad al inscribirse en eventos con restricciones.",
       color: "from-amber-400 to-orange-500"
     },
@@ -191,7 +191,7 @@ const HomePage: React.FC = () => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-2 border-white/30 text-white bg-white/10 hover:bg-white/20 font-semibold text-lg px-8 py-6 rounded-full backdrop-blur-sm transition-all hover:scale-105 min-w-[220px]"
+                  className="border-2 border-white/30 text-white bg-white/10 hover:bg-white/20 hover:text-white font-semibold text-lg px-8 py-6 rounded-full backdrop-blur-sm transition-all hover:scale-105 min-w-[220px]"
                   onClick={() => navigate("/registro")}
                 >
                   <UserPlus className="mr-2 h-5 w-5" />

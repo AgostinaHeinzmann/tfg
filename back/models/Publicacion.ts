@@ -15,6 +15,7 @@ import { User } from "./User"
 import Ciudad from "./Ciudad"
 import Comentario from "./Comentario"
 import PublicacionImagen from "./PublicacionImagen"
+import Interes from "./Interes"
 
 @Table({
   tableName: "publicacion",
@@ -62,6 +63,9 @@ export class Publicacion extends Model<Publicacion> {
 
   @HasMany(() => PublicacionImagen, { sourceKey: 'publicacion_id', foreignKey: 'publicacion_id' })
   imagenes?: PublicacionImagen[]
+
+  @HasMany(() => Interes, { sourceKey: 'publicacion_id', foreignKey: 'publicacion_id' })
+  intereses?: Interes[]
 }
 
 export default Publicacion

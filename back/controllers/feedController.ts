@@ -6,11 +6,12 @@ import { User } from "../models/User";
 import Ciudad from "../models/Ciudad";
 import PublicacionImagen from "../models/PublicacionImagen";
 import PublicacionLike from "../models/PublicacionLike";
+import Interes from "../models/Interes";
 
-// GET: Obtener feed con filtros (búsqueda por ciudad)
+// GET: Obtener feed con filtros (búsqueda por ciudad e intereses)
 export const getFeed = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { ciudad_id, page = 1, size = 10, usuario_id } = req.query;
+    const { ciudad_id, page = 1, size = 10, usuario_id, interests } = req.query;
     const pageNum = Math.max(1, Number(page));
     const pageSize = Math.min(50, Math.max(1, Number(size)));
     const offset = (pageNum - 1) * pageSize;
@@ -20,6 +21,18 @@ export const getFeed = async (req: Request, res: Response): Promise<void> => {
     // Filtrar por ciudad
     if (ciudad_id && ciudad_id !== '') {
       whereClause.ciudad_id = Number(ciudad_id);
+    }
+
+    // Configurar filtro de intereses
+    const hasInterestsFilter = !!(interests && interests !== '');
+    let interestsWhere: any = undefined;
+    if (hasInterestsFilter) {
+      const interestsArray = (interests as string).split(",").filter(i => i.trim() !== '');
+      if (interestsArray.length > 0) {
+        interestsWhere = {
+          tipo: { [Op.in]: interestsArray }
+        };
+      }
     }
 
     const { count, rows } = await Publicacion.findAndCountAll({
@@ -49,11 +62,18 @@ export const getFeed = async (req: Request, res: Response): Promise<void> => {
         {
           model: PublicacionImagen,
           attributes: ['publicacion_imagen_id', 'imagen_id', 'imagen_base64', 'mime_type']
+        },
+        {
+          model: Interes,
+          as: 'intereses',
+          required: hasInterestsFilter,
+          where: interestsWhere
         }
       ],
       order: [['fecha_creacion', 'DESC']],
       limit: pageSize,
-      offset: offset
+      offset: offset,
+      distinct: true
     });
 
     // Si hay usuario_id, verificar qué publicaciones tienen like del usuario
@@ -136,6 +156,10 @@ export const getFeedById = async (req: Request, res: Response): Promise<void> =>
         {
           model: PublicacionImagen,
           attributes: ['publicacion_imagen_id', 'imagen_id', 'imagen_base64', 'mime_type']
+        },
+        {
+          model: Interes,
+          as: 'intereses'
         }
       ]
     });
@@ -170,7 +194,7 @@ export const createFeed = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    const { usuario_id, descripcion, ciudad_id, imagenes } = req.body;
+    const { usuario_id, descripcion, ciudad_id, imagenes, intereses } = req.body;
 
     // Validar campos requeridos
     if (!usuario_id || !descripcion) {
@@ -223,6 +247,15 @@ export const createFeed = async (req: Request, res: Response): Promise<void> => 
       await PublicacionImagen.bulkCreate(imagenesData as any);
     }
 
+    // Agregar intereses si se proporcionan (array de strings con los tipos)
+    if (intereses && Array.isArray(intereses) && intereses.length > 0) {
+      const interesesData = intereses.map((tipo: string) => ({
+        publicacion_id: publicacion.publicacion_id,
+        tipo
+      }));
+      await Interes.bulkCreate(interesesData as any);
+    }
+
     // Obtener la publicación completa
     const publicacionCompleta = await Publicacion.findByPk(publicacion.publicacion_id, {
       include: [
@@ -239,6 +272,10 @@ export const createFeed = async (req: Request, res: Response): Promise<void> => 
         {
           model: PublicacionImagen,
           attributes: ['publicacion_imagen_id', 'imagen_id', 'imagen_base64', 'mime_type']
+        },
+        {
+          model: Interes,
+          as: 'intereses'
         }
       ]
     });

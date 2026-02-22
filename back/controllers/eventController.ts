@@ -208,6 +208,9 @@ export const getAllEvents = async (
         eventData.es_anfitrion = false;
       }
       
+      // Calcular participantes actuales (sin contar al creador)
+      eventData.participantes_actuales = eventData.inscripciones?.length || 0;
+      
       return eventData;
     });
 
@@ -322,6 +325,9 @@ export const getEventById = async (
       eventData.usuario_inscrito = false;
       eventData.es_anfitrion = false;
     }
+
+    // Calcular participantes actuales (sin contar al creador)
+    eventData.participantes_actuales = eventData.inscripciones?.length || 0;
 
     res.status(200).json({
       success: true,

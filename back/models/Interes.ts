@@ -10,6 +10,7 @@ import {
 } from "sequelize-typescript"
 import Itinerary from "./Itinerario"
 import Event from "./Event"
+import Publicacion from "./Publicacion"
 
 @Table({
   tableName: "interes",
@@ -30,6 +31,11 @@ export class Interes extends Model<Interes> {
   @AllowNull(true)
   @Column(DataType.INTEGER)
   evento_id?: number | null
+
+  @ForeignKey(() => Publicacion)
+  @AllowNull(true)
+  @Column(DataType.INTEGER)
+  publicacion_id?: number | null
 
   @AllowNull(true)
   @Column(DataType.STRING(50))

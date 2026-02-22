@@ -378,7 +378,7 @@ export const getChatMessages = async (
         : event.calle || null,
       ciudad: (event.direccion as any)?.ciudad?.nombre || null,
       cant_participantes: event.cant_participantes,
-      participantes_actuales: (event.inscripciones?.length || 0) + 1, // +1 por el creador
+      participantes_actuales: event.inscripciones?.length || 0, // Solo inscripciones, sin contar al creador
       creador_id: event.usuario_id, // ID del creador para verificar badge de anfitrión
       creador: event.usuario ? {
         id: event.usuario.usuario_id,

@@ -199,10 +199,18 @@ const CrearEventoPage: React.FC = () => {
         }
 
         // Cargar datos del evento en el formulario
+        // Extraer categoría de los intereses del evento
+        let categoryValue = ""
+        if (event.intereses && event.intereses.length > 0) {
+          // Los intereses pueden ser strings o objetos con propiedad 'tipo'
+          const firstInteres = event.intereses[0]
+          categoryValue = typeof firstInteres === 'string' ? firstInteres : (firstInteres.tipo || "")
+        }
+
         setForm({
           title: event.nombre_evento || "",
           description: event.descripcion_evento || "",
-          category: "", // TODO: cargar categoria si existe
+          category: categoryValue,
           maxParticipants: event.cant_participantes?.toString() || "10",
           location: event.calle || event.direccion?.calle || "",
           coordinates: event.latitud && event.longitud 

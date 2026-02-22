@@ -36,6 +36,9 @@ const ExperienciasPage: React.FC = () => {
   const [postCiudadNombre, setPostCiudadNombre] = useState<string>("")
   const [citySearchQuery, setCitySearchQuery] = useState("")
   const [showCityDropdown, setShowCityDropdown] = useState(false)
+  const [postInteresId, setPostInteresId] = useState<number | null>(null)
+  const [postInteresNombre, setPostInteresNombre] = useState<string>("")
+  const [showInteresDropdown, setShowInteresDropdown] = useState(false)
   const [experiences, setExperiences] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [ciudades, setCiudades] = useState<Array<{ id: number; nombre: string }>>([])
@@ -109,6 +112,15 @@ const ExperienciasPage: React.FC = () => {
       if (selectedFilterCityId) filters.ciudad_id = selectedFilterCityId
       // Enviar usuario_id para saber qué publicaciones tienen like del usuario
       if (currentUserId) filters.usuario_id = currentUserId
+      // Filtrar por intereses seleccionados
+      if (selectedIntereses.length > 0) {
+        // Enviar como interests (array de tipos)
+        const tipos = selectedIntereses.map(id => {
+          const interes = intereses.find(i => i.id === id)
+          return interes?.tipo
+        }).filter(Boolean)
+        filters.interests = tipos.join(",")
+      }
 
       const response: any = await getFeed(filters)
       let data = response.data || []
@@ -176,6 +188,13 @@ const ExperienciasPage: React.FC = () => {
     setPostCiudadNombre(cityName)
     setCitySearchQuery("")
     setShowCityDropdown(false)
+  }
+
+  // Seleccionar interés para publicar
+  const selectPostInteres = (interesId: number, interesNombre: string) => {
+    setPostInteresId(interesId)
+    setPostInteresNombre(interesNombre)
+    setShowInteresDropdown(false)
   }
 
   // Editar publicación
@@ -282,6 +301,8 @@ const ExperienciasPage: React.FC = () => {
       }
 
       if (postCiudadId) feedData.ciudad_id = postCiudadId
+      // Enviar intereses como array de strings
+      if (postInteresNombre) feedData.intereses = [postInteresNombre]
 
       // Convertir imagen a base64 si existe
       if (selectedImage) {
@@ -303,6 +324,9 @@ const ExperienciasPage: React.FC = () => {
       setPostCiudadNombre("")
       setCitySearchQuery("")
       setShowCityDropdown(false)
+      setPostInteresId(null)
+      setPostInteresNombre("")
+      setShowInteresDropdown(false)
 
       // Recargar feed
       loadFeed()
@@ -439,6 +463,23 @@ const ExperienciasPage: React.FC = () => {
                     </div>
                   </div>
                 )}
+                {/* Interest Dropdown for Post */}
+                {showInteresDropdown && intereses.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-sm text-gray-500 mb-2">Selecciona un interés para tu publicación:</p>
+                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                      {intereses.map((interes) => (
+                        <Badge
+                          key={interes.id}
+                          className="cursor-pointer px-3 py-1.5 transition-colors bg-gray-100 text-gray-700 hover:bg-purple-100 hover:text-purple-700"
+                          onClick={() => selectPostInteres(interes.id, interes.tipo)}
+                        >
+                          {interes.tipo}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <div className="flex gap-2">
                     <Button
@@ -472,6 +513,25 @@ const ExperienciasPage: React.FC = () => {
                             e.stopPropagation()
                             setPostCiudadId(null)
                             setPostCiudadNombre("")
+                          }}
+                        />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`${postInteresNombre ? 'text-purple-600' : 'text-gray-600'}`}
+                      onClick={() => setShowInteresDropdown((prev) => !prev)}
+                    >
+                      <Heart className="h-4 w-4 mr-2" />
+                      {postInteresNombre || 'Interés'}
+                      {postInteresNombre && (
+                        <X 
+                          className="h-3 w-3 ml-1" 
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setPostInteresId(null)
+                            setPostInteresNombre("")
                           }}
                         />
                       )}

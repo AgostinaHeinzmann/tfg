@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { Event } from "../models/Event";
 import { where, WhereOptions } from "sequelize";
 import { Where } from "sequelize/types/utils";
-import { Op } from "sequelize";
+import { Op, fn, col } from "sequelize";
 import Interes from "../models/Interes";
 import Direccion from "../models/Direccion";
 import { Ciudad } from "../models/Ciudad";
@@ -29,9 +29,16 @@ export const getFilters = async (
       order: [['nombre', 'ASC']]
     });
 
-    // Obtener todos los intereses
+    // Obtener todos los intereses únicos por tipo (sin duplicados)
     const intereses = await Interes.findAll({
-      attributes: [['interes_id', 'id'], 'tipo'],
+      attributes: [
+        [fn('MIN', col('interes_id')), 'id'],
+        'tipo'
+      ],
+      where: {
+        tipo: { [Op.ne]: null }
+      },
+      group: ['tipo'],
       order: [['tipo', 'ASC']]
     });
 

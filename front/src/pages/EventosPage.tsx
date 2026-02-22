@@ -152,6 +152,7 @@ const EventosPage: React.FC = () => {
     setSelectedCategory(null)
     setSelectedAgeGroup(null)
     setSelectedDate(null)
+    setFilters({})
   }
 
   // Cargar eventos
@@ -344,15 +345,6 @@ const EventosPage: React.FC = () => {
                   <div className="space-y-2">
                     <div className="font-medium">Grupo de edad</div>
                     <div className="flex flex-wrap gap-2">
-                      <Badge
-                        className={`cursor-pointer ${selectedAgeGroup === null
-                          ? "bg-indigo-600 hover:bg-indigo-700"
-                          : "bg-gray-100 text-gray-800 hover:bg-gray-200"
-                          }`}
-                        onClick={() => setSelectedAgeGroup(null)}
-                      >
-                        Todos
-                      </Badge>
                       {filterOptions.ageGroups.map((group) => (
                         <Badge
                           key={group.id}
@@ -371,15 +363,6 @@ const EventosPage: React.FC = () => {
                   <div className="space-y-2">
                     <div className="font-medium">Fecha</div>
                     <div className="flex flex-wrap gap-2">
-                      <Badge
-                        className={`cursor-pointer ${selectedDate === null
-                          ? "bg-indigo-600 hover:bg-indigo-700"
-                          : "bg-gray-100 text-gray-800 hover:bg-gray-200"
-                          }`}
-                        onClick={() => setSelectedDate(null)}
-                      >
-                        Todos
-                      </Badge>
                       <Badge
                         className={`cursor-pointer ${selectedDate === 'today'
                           ? "bg-indigo-600 hover:bg-indigo-700 text-white"
@@ -411,7 +394,7 @@ const EventosPage: React.FC = () => {
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <Button className="w-full" onClick={handleApplyFilters}>Aplicar filtros</Button>
+                    <Button className="w-full bg-indigo-600 hover:bg-indigo-700" onClick={handleApplyFilters}>Aplicar filtros</Button>
                     {(selectedFilterCityName || selectedFilterPaisName || selectedCategory || selectedAgeGroup !== null || selectedDate) && (
                       <Button variant="outline" className="w-full text-gray-600" onClick={clearFilters}>
                         <X className="h-4 w-4 mr-2" />

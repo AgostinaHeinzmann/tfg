@@ -5,6 +5,7 @@ export interface FeedFilters {
   page?: number
   size?: number
   usuario_id?: number
+  interests?: string
 }
 
 export interface ImageData {
@@ -16,6 +17,7 @@ export interface CreateFeedData {
   usuario_id: number
   descripcion: string
   ciudad_id?: number
+  interes_id?: number
   imagenes?: ImageData[]
 }
 
@@ -41,6 +43,7 @@ export const getFeed = async (filters?: FeedFilters) => {
     if (filters?.page) params.append('page', filters.page.toString())
     if (filters?.size) params.append('size', filters.size.toString())
     if (filters?.usuario_id) params.append('usuario_id', filters.usuario_id.toString())
+    if (filters?.interests) params.append('interests', filters.interests)
 
     const response = await client.get(`/feed?${params.toString()}`)
     return response.data

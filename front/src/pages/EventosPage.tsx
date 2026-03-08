@@ -5,13 +5,13 @@ import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
-import { Avatar, AvatarFallback } from "../components/ui/avatar"
 import { Calendar, MapPin, Clock, Users, Plus, CheckCircle, Eye, Loader2, Search, X, Globe } from "lucide-react"
 import EventoDetalleModal from "./EventoDetallePage"
 import { showToast } from "../lib/toast-utils"
 import { loadFromLocalStorage } from "../lib/utils"
 import { getAllEvents, registerUserToEvent, type EventFilters } from "../services/eventService"
 import { getFilters } from "../services/filtrosService"
+import { getVerificacion } from "../services/verificacionService"
 import { auth } from "../../firebase/firebase.config"
 
 // Función para formatear la hora correctamente
@@ -192,6 +192,29 @@ const EventosPage: React.FC = () => {
   }
 
 
+  const handleCreateEvent = async () => {
+    const user = auth.currentUser
+    if (!user) {
+      showToast.warning("Inicia sesión", "Debes iniciar sesión para crear un evento")
+      navigate("/login")
+      return
+    }
+
+    try {
+      const isVerified = await getVerificacion()
+      if (!isVerified) {
+        showToast.warning("Verificación requerida", "Para crear un evento, debes verificar tu identidad primero.")
+        navigate("/verificar-identidad")
+        return
+      }
+      navigate("/crear-evento")
+    } catch (error) {
+      console.error("Error checking verification:", error)
+      showToast.warning("Verificación requerida", "Para crear un evento, debes verificar tu identidad primero.")
+      navigate("/verificar-identidad")
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <div className="container mx-auto px-4 py-12">
@@ -201,7 +224,7 @@ const EventosPage: React.FC = () => {
               <h1 className="text-4xl font-bold text-indigo-900 mb-2">Eventos</h1>
               <p className="text-gray-600">Descubre eventos y actividades para conectar con otros viajeros</p>
             </div>
-            <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={() => navigate("/crear-evento")}>
+            <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleCreateEvent}>
               <Plus className="h-4 w-4 mr-2" />
               Crear evento
             </Button>
@@ -571,22 +594,7 @@ function EventCard({ event, onEventUpdate }: { event: any; onEventUpdate: () => 
             </div>
           </div>
 
-          <div className="flex -space-x-2 mb-4">
-            {[...Array(Math.min(4, event.participantes_actuales || event.participants || 0))].map((_, i) => (
-              <Avatar key={i} className="border-2 border-white w-8 h-8">
-                <AvatarFallback className="bg-indigo-200 text-indigo-800 text-xs">
-                  {String.fromCharCode(65 + i)}
-                </AvatarFallback>
-              </Avatar>
-            ))}
-            {(event.participantes_actuales || event.participants || 0) > 4 && (
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 border-2 border-white text-xs font-medium">
-                +{(event.participantes_actuales || event.participants) - 4}
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-2">
+          <div className="flex gap-2 mt-4">
             <Button 
               variant="outline" 
               className={`${isHost || isJoined ? 'w-full' : 'flex-1'} border-indigo-200 text-indigo-700 hover:bg-indigo-50`} 

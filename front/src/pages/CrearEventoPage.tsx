@@ -465,10 +465,19 @@ const CrearEventoPage: React.FC = () => {
       navigate("/eventos")
     } catch (error: any) {
       console.error("Error saving event:", error)
-      showToast.error(
-        isEditing ? "Error al actualizar evento" : "Error al crear evento",
-        error.message || "No se pudo guardar el evento"
-      )
+      
+      const errorCode = error.response?.data?.errorCode
+      const errorMessage = error.response?.data?.message || error.message || "No se pudo guardar el evento"
+      
+      if (errorCode === "VERIFICATION_REQUIRED") {
+        showToast.warning("Verificación requerida", errorMessage)
+        navigate("/verificar-identidad")
+      } else {
+        showToast.error(
+          isEditing ? "Error al actualizar evento" : "Error al crear evento",
+          errorMessage
+        )
+      }
     } finally {
       setLoading(false)
     }

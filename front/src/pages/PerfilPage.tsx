@@ -545,7 +545,7 @@ const PerfilPage: React.FC = () => {
               <CardContent className="space-y-4 pb-6">
                 <div className="flex items-center gap-3 text-gray-700">
                   <Mail className="h-4 w-4 text-indigo-600" />
-                  <span>{userData.email}</span>
+                  <span className="truncate">{userData.email}</span>
                 </div>
                 <div className="flex items-center gap-3 text-gray-700">
                   <Calendar className="h-4 w-4 text-indigo-600" />

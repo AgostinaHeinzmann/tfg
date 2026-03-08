@@ -11,10 +11,10 @@ import Interes from "../models/Interes";
 // GET: Obtener feed con filtros (búsqueda por ciudad e intereses)
 export const getFeed = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { ciudad_id, page = 1, size = 10, usuario_id, interests } = req.query;
-    const pageNum = Math.max(1, Number(page));
-    const pageSize = Math.min(50, Math.max(1, Number(size)));
-    const offset = (pageNum - 1) * pageSize;
+    const { ciudad_id, page, size, usuario_id, interests } = req.query;
+    const pageNum = page ? Math.max(1, Number(page)) : undefined;
+    const pageSize = size ? Math.min(1000, Math.max(1, Number(size))) : undefined;
+    const offset = (pageNum && pageSize) ? (pageNum - 1) * pageSize : undefined;
 
     let whereClause: any = {};
 
@@ -61,7 +61,7 @@ export const getFeed = async (req: Request, res: Response): Promise<void> => {
         },
         {
           model: PublicacionImagen,
-          attributes: ['publicacion_imagen_id', 'imagen_id', 'imagen_base64', 'mime_type']
+          attributes: ['publicacion_imagen_id', 'imagen_base64', 'mime_type']
         },
         {
           model: Interes,
@@ -71,8 +71,8 @@ export const getFeed = async (req: Request, res: Response): Promise<void> => {
         }
       ],
       order: [['fecha_creacion', 'DESC']],
-      limit: pageSize,
-      offset: offset,
+      ...(pageSize !== undefined && { limit: pageSize }),
+      ...(offset !== undefined && { offset }),
       distinct: true
     });
 
@@ -101,9 +101,9 @@ export const getFeed = async (req: Request, res: Response): Promise<void> => {
       data: dataWithLikes,
       pagination: {
         total: count,
-        page: pageNum,
-        size: pageSize,
-        pages: Math.ceil(count / pageSize)
+        page: pageNum || 1,
+        size: pageSize || count,
+        pages: pageSize ? Math.ceil(count / pageSize) : 1
       }
     });
 
@@ -155,7 +155,7 @@ export const getFeedById = async (req: Request, res: Response): Promise<void> =>
         },
         {
           model: PublicacionImagen,
-          attributes: ['publicacion_imagen_id', 'imagen_id', 'imagen_base64', 'mime_type']
+          attributes: ['publicacion_imagen_id', 'imagen_base64', 'mime_type']
         },
         {
           model: Interes,
@@ -229,19 +229,11 @@ export const createFeed = async (req: Request, res: Response): Promise<void> => 
 
     // Agregar imágenes si se proporcionan (nuevo formato con base64)
     if (imagenes && Array.isArray(imagenes) && imagenes.length > 0) {
-      const imagenesData = imagenes.map((img: { base64: string; mimeType?: string } | number) => {
-        // Soportar tanto el formato antiguo (imagen_id) como el nuevo (base64)
-        if (typeof img === 'number') {
-          return {
-            publicacion_id: publicacion.publicacion_id,
-            imagen_id: img
-          };
-        } else {
+      const imagenesData = imagenes.map((img: { base64: string; mimeType?: string }) => {
           return {
             publicacion_id: publicacion.publicacion_id,
             imagen_base64: img.base64,
             mime_type: img.mimeType || 'image/jpeg'
-          };
         }
       });
       await PublicacionImagen.bulkCreate(imagenesData as any);
@@ -271,7 +263,7 @@ export const createFeed = async (req: Request, res: Response): Promise<void> => 
         },
         {
           model: PublicacionImagen,
-          attributes: ['publicacion_imagen_id', 'imagen_id', 'imagen_base64', 'mime_type']
+          attributes: ['publicacion_imagen_id', 'imagen_base64', 'mime_type']
         },
         {
           model: Interes,

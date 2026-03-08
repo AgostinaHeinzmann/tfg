@@ -49,7 +49,7 @@ export const getAllEvents = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { location, ciudad_id, pais_id, interests, ageGroup, date, size = "10", page = "0", usuario_id } = req.query;
+    const { location, ciudad_id, pais_id, interests, ageGroup, date, size, page = "0", usuario_id } = req.query;
 
     const ageGroups: { [key: number]: [number, number] } = {
       0: [0, 18],
@@ -106,9 +106,9 @@ export const getAllEvents = async (
     const hasLocationText = !!(location && location !== '');
     const hasLocationFilter = hasCiudadId || hasPaisId || hasLocationText;
 
-    // Configurar paginación
-    const pageSize = Math.min(Number(size), 50); // Limitar el tamaño máximo de página
-    const offset = Math.max(0, Number(page)) * pageSize;
+    // Configurar paginación (solo si se especifica size)
+    const pageSize = size ? Math.min(Number(size), 1000) : undefined;
+    const offset = pageSize ? Math.max(0, Number(page)) * pageSize : undefined;
 
     // Construir where clause para direccion/ciudad
     let direccionWhere: any = {};
@@ -130,8 +130,8 @@ export const getAllEvents = async (
 
     const events = await Event.findAll({
       where: whereClause,
-      offset,
-      limit: pageSize,
+      ...(offset !== undefined && { offset }),
+      ...(pageSize !== undefined && { limit: pageSize }),
       subQuery: false,  // Añadir esta línea para evitar subconsultas
       include: [
         {
@@ -387,6 +387,18 @@ export const createEvent = async (
         message: "User not found"
       });
       return;
+    }
+
+    // Si el evento tiene restricción de edad, verificar que el usuario esté verificado
+    if (restriccion_edad && Number(restriccion_edad) > 0) {
+      if (!userExists.verificacion) {
+        res.status(403).json({
+          success: false,
+          message: "Para crear un evento con restricción de edad, debes verificar tu identidad primero.",
+          errorCode: "VERIFICATION_REQUIRED"
+        });
+        return;
+      }
     }
 
     // Manejar la dirección del evento

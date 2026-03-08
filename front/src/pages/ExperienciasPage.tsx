@@ -50,7 +50,6 @@ const ExperienciasPage: React.FC = () => {
   const [selectedIntereses, setSelectedIntereses] = useState<number[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [showFilters, setShowFilters] = useState(false)
-  const [page, setPage] = useState(0)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingPost, setEditingPost] = useState<any>(null)
   const [editDescription, setEditDescription] = useState("")
@@ -107,7 +106,7 @@ const ExperienciasPage: React.FC = () => {
   const loadFeed = async () => {
     setLoading(true)
     try {
-      const filters: any = { page, size: 10 }
+      const filters: any = {}
       // Filtrar por ciudad si se seleccionó
       if (selectedFilterCityId) filters.ciudad_id = selectedFilterCityId
       // Enviar usuario_id para saber qué publicaciones tienen like del usuario
@@ -148,7 +147,7 @@ const ExperienciasPage: React.FC = () => {
 
   useEffect(() => {
     loadFeed()
-  }, [page, selectedFilterCityId, selectedIntereses])
+  }, [selectedFilterCityId, selectedIntereses])
 
   // Debounced search
   useEffect(() => {
@@ -380,12 +379,31 @@ const ExperienciasPage: React.FC = () => {
     }
 
     try {
-      await commentPublication(publicacionId, {
+      const response: any = await commentPublication(publicacionId, {
         usuario_id: usuarioId,
         mensaje
       })
       showToast.success("Comentado", "Tu comentario se agregó exitosamente")
-      loadFeed() // Recargar para mostrar el nuevo comentario
+      
+      // Actualizar el estado local en lugar de recargar toda la página
+      const nuevoComentario = response.data || {
+        id: Date.now(),
+        mensaje,
+        usuario: {
+          nombre: userData?.nombre || user.displayName || "Usuario",
+          apellido: userData?.apellido || ""
+        },
+        fecha_creacion: new Date().toISOString()
+      }
+      
+      setExperiences(prev => prev.map(exp =>
+        exp.publicacion_id === publicacionId
+          ? {
+              ...exp,
+              comentarios: [...(exp.comentarios || []), nuevoComentario]
+            }
+          : exp
+      ))
     } catch (error: any) {
       console.error("Error commenting:", error)
       showToast.error("Error", "No se pudo agregar el comentario")
@@ -393,33 +411,33 @@ const ExperienciasPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
-      <div className="container mx-auto px-4 py-12 max-w-4xl">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white overflow-x-hidden">
+      <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-12 max-w-4xl overflow-hidden">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Heart className="h-8 w-8 text-indigo-600" />
-            <h1 className="text-4xl font-bold text-indigo-900">Experiencias</h1>
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="flex items-center justify-center gap-2 mb-3 sm:mb-4">
+            <Heart className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-600" />
+            <h1 className="text-2xl sm:text-4xl font-bold text-indigo-900">Experiencias</h1>
           </div>
-          <p className="text-gray-600 max-w-2xl mx-auto">Descubre y comparte experiencias de viaje con la comunidad</p>
+          <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto px-2">Descubre y comparte experiencias de viaje con la comunidad</p>
         </div>
 
         {/* Create Post */}
-        <Card className="border-indigo-100 shadow-md mb-8">
-          <CardContent className="pt-6">
-            <div className="flex gap-4">
-              <Avatar className="h-10 w-10">
+        <Card className="border-indigo-100 shadow-md mb-6 sm:mb-8">
+          <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+            <div className="flex gap-3 sm:gap-4">
+              <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
                 <AvatarImage src={userProfileImage || "/placeholder.svg"} />
-                <AvatarFallback className="bg-indigo-200 text-indigo-800">
+                <AvatarFallback className="bg-indigo-200 text-indigo-800 text-sm sm:text-base">
                   {userDisplayName?.charAt(0) || "U"}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex-1">
-                <Input
+              <div className="flex-1 min-w-0">
+                <Textarea
                   placeholder="Comparte tu experiencia de viaje..."
                   value={newPost}
                   onChange={(e) => setNewPost(e.target.value)}
-                  className="border-0 bg-gray-50 text-base p-4 mb-4"
+                  className="border-0 bg-gray-50 text-sm sm:text-base p-3 sm:p-4 mb-3 sm:mb-4 min-h-[70px] sm:min-h-[80px] resize-none"
                 />
                 {imagePreview && (
                   <div className="mb-2 relative">
@@ -480,16 +498,16 @@ const ExperienciasPage: React.FC = () => {
                     </div>
                   </div>
                 )}
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2">
+                  <div className="flex flex-wrap gap-1 sm:gap-2">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-gray-600"
+                      className="text-gray-600 text-xs sm:text-sm px-2 sm:px-3"
                       onClick={() => document.getElementById("fileInput")?.click()}
                     >
-                      <Camera className="h-4 w-4 mr-2" />
-                      Foto
+                      <Camera className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Foto</span>
                     </Button>
                     <input
                       id="fileInput"
@@ -501,11 +519,12 @@ const ExperienciasPage: React.FC = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`${postCiudadNombre ? 'text-indigo-600' : 'text-gray-600'}`}
+                      className={`text-xs sm:text-sm px-2 sm:px-3 ${postCiudadNombre ? 'text-indigo-600' : 'text-gray-600'}`}
                       onClick={() => setShowCityDropdown((prev) => !prev)}
                     >
-                      <MapPin className="h-4 w-4 mr-2" />
-                      {postCiudadNombre || 'Ubicación'}
+                      <MapPin className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">{postCiudadNombre || 'Ubicación'}</span>
+                      <span className="sm:hidden truncate max-w-[60px]">{postCiudadNombre || 'Ubic.'}</span>
                       {postCiudadNombre && (
                         <X 
                           className="h-3 w-3 ml-1" 
@@ -520,11 +539,12 @@ const ExperienciasPage: React.FC = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`${postInteresNombre ? 'text-purple-600' : 'text-gray-600'}`}
+                      className={`text-xs sm:text-sm px-2 sm:px-3 ${postInteresNombre ? 'text-purple-600' : 'text-gray-600'}`}
                       onClick={() => setShowInteresDropdown((prev) => !prev)}
                     >
-                      <Heart className="h-4 w-4 mr-2" />
-                      {postInteresNombre || 'Interés'}
+                      <Heart className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">{postInteresNombre || 'Interés'}</span>
+                      <span className="sm:hidden truncate max-w-[60px]">{postInteresNombre || 'Int.'}</span>
                       {postInteresNombre && (
                         <X 
                           className="h-3 w-3 ml-1" 
@@ -538,7 +558,7 @@ const ExperienciasPage: React.FC = () => {
                     </Button>
                   </div>
                   <Button
-                    className="bg-indigo-600 hover:bg-indigo-700"
+                    className="bg-indigo-600 hover:bg-indigo-700 w-full sm:w-auto"
                     onClick={handlePublish}
                     disabled={!newPost.trim()}
                   >
@@ -551,13 +571,13 @@ const ExperienciasPage: React.FC = () => {
         </Card>
 
         {/* Barra de búsqueda y filtros */}
-        <Card className="border-indigo-100 shadow-md mb-8">
-          <CardContent className="pt-6">
+        <Card className="border-indigo-100 shadow-md mb-6 sm:mb-8">
+          <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
             {/* Búsqueda principal */}
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Buscar por texto, usuario, ubicación..."
+                placeholder="Buscar por texto o usuario..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 pr-10 bg-gray-50 border-gray-200 focus:border-indigo-300"
@@ -728,7 +748,7 @@ const ExperienciasPage: React.FC = () => {
 
         {/* Edit Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-[500px] mx-auto rounded-lg">
             <DialogHeader>
               <DialogTitle>Editar publicación</DialogTitle>
             </DialogHeader>
@@ -753,7 +773,7 @@ const ExperienciasPage: React.FC = () => {
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <DialogContent className="sm:max-w-[400px]">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-[400px] mx-auto rounded-lg">
             <DialogHeader>
               <DialogTitle>¿Eliminar publicación?</DialogTitle>
             </DialogHeader>
@@ -773,31 +793,19 @@ const ExperienciasPage: React.FC = () => {
 
         {/* Image Viewer Dialog */}
         <Dialog open={imageViewerOpen} onOpenChange={setImageViewerOpen}>
-          <DialogContent className="sm:max-w-[90vw] sm:max-h-[90vh] p-0 bg-black/95">
-            <div className="relative flex items-center justify-center min-h-[50vh]">
+          <DialogContent className="w-[95vw] max-w-[90vw] h-auto max-h-[90vh] p-0 bg-black/95 [&>button]:bg-white/20 [&>button]:hover:bg-white/40 [&>button]:text-white [&>button]:rounded-full [&>button]:p-1.5">
+            <div className="relative flex items-center justify-center min-h-[40vh] sm:min-h-[50vh] p-2">
               {viewerImage && (
                 <img
                   src={viewerImage}
                   alt="Imagen ampliada"
-                  className="max-w-full max-h-[85vh] object-contain"
+                  className="max-w-full max-h-[80vh] sm:max-h-[85vh] object-contain"
                 />
               )}
             </div>
           </DialogContent>
         </Dialog>
 
-        {/* Load More */}
-        {experiences.length > 0 && (
-          <div className="text-center mt-8">
-            <Button
-              variant="outline"
-              className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-              onClick={() => setPage(page + 1)}
-            >
-              Cargar más experiencias
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   )
@@ -830,28 +838,28 @@ function ExperienceCard({ experience, currentUserId, onLike, onComment, onEdit, 
 
   return (
     <Card className="border-indigo-100 shadow-md">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 px-3 sm:px-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
               <AvatarImage src={experience.usuario?.imagen_perfil_id || "/placeholder.svg"} />
-              <AvatarFallback className="bg-indigo-200 text-indigo-800">
+              <AvatarFallback className="bg-indigo-200 text-indigo-800 text-sm sm:text-base">
                 {experience.usuario?.nombre?.charAt(0) || "U"}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <h3 className="font-semibold text-gray-900">
+            <div className="min-w-0">
+              <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
                 {experience.usuario?.nombre} {experience.usuario?.apellido}
               </h3>
-              <div className="flex items-center gap-1 text-sm text-gray-500">
+              <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-500 flex-wrap">
                 {cityName && (
                   <>
-                    <MapPin className="h-3 w-3" />
-                    <span>{cityName}</span>
+                    <MapPin className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate max-w-[80px] sm:max-w-none">{cityName}</span>
                     <span>•</span>
                   </>
                 )}
-                <Clock className="h-3 w-3" />
+                <Clock className="h-3 w-3 flex-shrink-0" />
                 <span>{new Date(experience.fecha_creacion).toLocaleDateString()}</span>
               </div>
             </div>
@@ -883,8 +891,8 @@ function ExperienceCard({ experience, currentUserId, onLike, onComment, onEdit, 
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-gray-700">{experience.descripcion}</p>
+      <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6">
+        <p className="text-gray-700 text-sm sm:text-base">{experience.descripcion}</p>
 
         {experience.imagenes && experience.imagenes.length > 0 && (
           <div className="rounded-lg overflow-hidden relative group cursor-pointer"
@@ -935,16 +943,16 @@ function ExperienceCard({ experience, currentUserId, onLike, onComment, onEdit, 
 
         {/* Comment input */}
         {showCommentInput && (
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <Input
               placeholder="Escribe un comentario..."
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              className="flex-1"
+              className="flex-1 text-sm"
             />
             <Button
               size="sm"
-              className="bg-indigo-600 hover:bg-indigo-700"
+              className="bg-indigo-600 hover:bg-indigo-700 w-full sm:w-auto"
               onClick={handleSubmitComment}
               disabled={!commentText.trim()}
             >
@@ -957,7 +965,7 @@ function ExperienceCard({ experience, currentUserId, onLike, onComment, onEdit, 
         {experience.comentarios && experience.comentarios.length > 0 && (
           <div className="space-y-2 pt-2">
             {experience.comentarios.slice(0, 3).map((comentario: any) => (
-              <div key={comentario.id} className="flex gap-2 text-sm">
+              <div key={comentario.id} className="flex gap-2 text-xs sm:text-sm">
                 <span className="font-semibold">{comentario.usuario?.nombre}:</span>
                 <span className="text-gray-700">{comentario.mensaje}</span>
               </div>

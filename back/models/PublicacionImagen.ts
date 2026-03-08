@@ -27,10 +27,6 @@ export class PublicacionImagen extends Model<PublicacionImagen> {
   publicacion_id!: number
 
   @AllowNull(true)
-  @Column(DataType.INTEGER)
-  imagen_id?: number | null
-
-  @AllowNull(true)
   @Column(DataType.TEXT)
   imagen_base64?: string | null
 

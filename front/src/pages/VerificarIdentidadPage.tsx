@@ -183,44 +183,44 @@ const VerificarIdentidadPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white py-12 px-4">
-      <div className="container mx-auto max-w-2xl">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white py-6 sm:py-12 px-3 sm:px-4 overflow-x-hidden">
+      <div className="container mx-auto max-w-2xl overflow-hidden">
         <Button 
           variant="ghost" 
-          className="mb-6 text-indigo-700"
+          className="mb-4 sm:mb-6 text-indigo-700 text-sm sm:text-base"
           onClick={() => navigate('/perfil')}
         >
           <ChevronLeft className="h-4 w-4 mr-1" />
           Volver
         </Button>
 
-        <div className="text-center mb-8">
-          <div className="bg-indigo-100 p-3 rounded-full w-fit mx-auto mb-4">
-            <Shield className="h-6 w-6 text-indigo-600" />
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="bg-indigo-100 p-2.5 sm:p-3 rounded-full w-fit mx-auto mb-3 sm:mb-4">
+            <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-600" />
           </div>
-          <h1 className="text-3xl font-bold text-indigo-900 mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-indigo-900 mb-2">
             Verificación de identidad
           </h1>
-          <p className="text-gray-600 max-w-md mx-auto">
+          <p className="text-sm sm:text-base text-gray-600 max-w-md mx-auto px-2">
             Verifica tu identidad para acceder a eventos con restricción de edad
             y crear tus propios eventos
           </p>
         </div>
 
-        <Alert className="mb-6 border-indigo-200 bg-indigo-50 text-indigo-800">
-          <Info className="h-4 w-4" />
-          <AlertTitle>Información importante</AlertTitle>
-          <AlertDescription>
+        <Alert className="mb-4 sm:mb-6 border-indigo-200 bg-indigo-50 text-indigo-800">
+          <Info className="h-4 w-4 flex-shrink-0" />
+          <AlertTitle className="text-sm sm:text-base">Información importante</AlertTitle>
+          <AlertDescription className="text-xs sm:text-sm">
             Tu información personal será tratada con confidencialidad y solo se
             utilizará para verificar tu edad. No almacenamos imágenes de tu
             documento de identidad.
           </AlertDescription>
         </Alert>
 
-        <Alert className="mb-6 border-yellow-200 bg-yellow-50 text-yellow-900">
-          <Info className="h-4 w-4" />
-          <AlertTitle>⚠️ Consejos para mejores resultados</AlertTitle>
-          <AlertDescription>
+        <Alert className="mb-4 sm:mb-6 border-yellow-200 bg-yellow-50 text-yellow-900">
+          <Info className="h-4 w-4 flex-shrink-0" />
+          <AlertTitle className="text-sm sm:text-base">⚠️ Consejos para mejores resultados</AlertTitle>
+          <AlertDescription className="text-xs sm:text-sm">
             <strong>Escaneo con cámara:</strong> Apunta al{" "}
             <strong>frente del DNI</strong> donde está el código de barras.
             <br />
@@ -230,18 +230,18 @@ const VerificarIdentidadPage: React.FC = () => {
         </Alert>
 
         <Card className="border-indigo-100 shadow-md">
-          <CardHeader>
-            <CardTitle>Elige un método de verificación</CardTitle>
-            <CardDescription>
+          <CardHeader className="px-4 sm:px-6">
+            <CardTitle className="text-lg sm:text-xl">Elige un método de verificación</CardTitle>
+            <CardDescription className="text-sm">
               Puedes escanear tu DNI con la cámara o subir una imagen del mismo
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
             {verification ? (
               <Alert className="border-green-200 bg-green-50 text-green-800">
-                <CheckCircle className="h-4 w-4" />
-                <AlertTitle>Ya verificado</AlertTitle>
-                <AlertDescription>
+                <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                <AlertTitle className="text-sm sm:text-base">Ya verificado</AlertTitle>
+                <AlertDescription className="text-xs sm:text-sm">
                   Tu identidad ya ha sido verificada correctamente. Puedes acceder a todos los eventos sin restricción de edad.
                 </AlertDescription>
               </Alert>
@@ -249,15 +249,15 @@ const VerificarIdentidadPage: React.FC = () => {
               <>
                 <div
                   onClick={() => setShowScanner(true)}
-                  className="border rounded-lg p-6 flex flex-col items-center cursor-pointer hover:bg-indigo-50 transition-colors"
+                  className="border rounded-lg p-4 sm:p-6 flex flex-col items-center cursor-pointer hover:bg-indigo-50 transition-colors active:bg-indigo-100"
                 >
-                  <div className="bg-indigo-100 p-3 rounded-full mb-3">
-                    <Camera className="h-6 w-6 text-indigo-600" />
+                  <div className="bg-indigo-100 p-2.5 sm:p-3 rounded-full mb-2 sm:mb-3">
+                    <Camera className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-600" />
                   </div>
-                  <h3 className="font-medium text-lg text-indigo-900 mb-1">
+                  <h3 className="font-medium text-base sm:text-lg text-indigo-900 mb-1">
                     Escanear con cámara
                   </h3>
-                  <p className="text-gray-600 text-center text-sm">
+                  <p className="text-gray-600 text-center text-xs sm:text-sm">
                     Apunta al <strong>frente (parte delantera)</strong> de tu DNI
                     donde están tus datos
                   </p>
@@ -265,15 +265,15 @@ const VerificarIdentidadPage: React.FC = () => {
 
                 <div 
                   onClick={() => fileInputRef.current?.click()}
-                  className="border rounded-lg p-6 flex flex-col items-center cursor-pointer hover:bg-indigo-50 transition-colors"
+                  className="border rounded-lg p-4 sm:p-6 flex flex-col items-center cursor-pointer hover:bg-indigo-50 transition-colors active:bg-indigo-100"
                 >
-                  <div className="bg-indigo-100 p-3 rounded-full mb-3">
-                    <Upload className="h-6 w-6 text-indigo-600" />
+                  <div className="bg-indigo-100 p-2.5 sm:p-3 rounded-full mb-2 sm:mb-3">
+                    <Upload className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-600" />
                   </div>
-                  <h3 className="font-medium text-lg text-indigo-900 mb-1">
+                  <h3 className="font-medium text-base sm:text-lg text-indigo-900 mb-1">
                     Subir imagen
                   </h3>
-                  <p className="text-gray-600 text-center text-sm">
+                  <p className="text-gray-600 text-center text-xs sm:text-sm">
                     Sube una foto clara del{" "}
                     <strong>dorso del DNI</strong> donde está la zona MRZ
                   </p>
@@ -309,25 +309,25 @@ const VerificarIdentidadPage: React.FC = () => {
 
       {/* Modal de Éxito */}
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent className="border-green-200 bg-white">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md mx-auto border-green-200 bg-white rounded-lg">
           <DialogHeader>
-            <div className="flex justify-center mb-4">
-              <div className="bg-green-100 p-3 rounded-full">
-                <CheckCircle className="h-8 w-8 text-green-600" />
+            <div className="flex justify-center mb-3 sm:mb-4">
+              <div className="bg-green-100 p-2.5 sm:p-3 rounded-full">
+                <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
               </div>
             </div>
-            <DialogTitle className="text-center text-green-900">
+            <DialogTitle className="text-center text-green-900 text-base sm:text-lg">
               ¡Verificación exitosa!
             </DialogTitle>
-            <DialogDescription className="text-center mt-2">
+            <DialogDescription className="text-center mt-2 text-xs sm:text-sm">
               Tu identidad ha sido verificada correctamente. Ahora puedes acceder a
               eventos con restricción de edad y crear tus propios eventos.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-center pt-4">
+          <div className="flex justify-center pt-3 sm:pt-4">
             <Button
               onClick={() => setShowSuccessModal(false)}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
             >
               Continuar
             </Button>
@@ -337,27 +337,27 @@ const VerificarIdentidadPage: React.FC = () => {
 
       {/* Modal de Error */}
       <Dialog open={showErrorModal} onOpenChange={setShowErrorModal}>
-        <DialogContent className="border-red-200 bg-white">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md mx-auto border-red-200 bg-white rounded-lg">
           <DialogHeader>
-            <div className="flex justify-center mb-4">
-              <div className="bg-red-100 p-3 rounded-full">
-                <AlertCircle className="h-8 w-8 text-red-600" />
+            <div className="flex justify-center mb-3 sm:mb-4">
+              <div className="bg-red-100 p-2.5 sm:p-3 rounded-full">
+                <AlertCircle className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
               </div>
             </div>
-            <DialogTitle className="text-center text-red-900">
+            <DialogTitle className="text-center text-red-900 text-base sm:text-lg">
               Error en la verificación
             </DialogTitle>
-            <DialogDescription className="text-center mt-2">
+            <DialogDescription className="text-center mt-2 text-xs sm:text-sm">
               {errorMessage}
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-center pt-4">
+          <div className="flex justify-center pt-3 sm:pt-4">
             <Button
               onClick={() => {
                 setShowErrorModal(false);
                 setShowScanner(false);
               }}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-white w-full sm:w-auto"
             >
               Intentar de nuevo
             </Button>
@@ -367,22 +367,22 @@ const VerificarIdentidadPage: React.FC = () => {
 
       {/* Modal de Escaneando Imagen */}
       <Dialog open={isScanningImage} onOpenChange={() => {}}>
-        <DialogContent className="border-indigo-200 bg-white sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md mx-auto border-indigo-200 bg-white rounded-lg" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
-            <div className="flex justify-center mb-4">
-              <div className="bg-indigo-100 p-4 rounded-full">
-                <Loader className="h-10 w-10 text-indigo-600 animate-spin" />
+            <div className="flex justify-center mb-3 sm:mb-4">
+              <div className="bg-indigo-100 p-3 sm:p-4 rounded-full">
+                <Loader className="h-8 w-8 sm:h-10 sm:w-10 text-indigo-600 animate-spin" />
               </div>
             </div>
-            <DialogTitle className="text-center text-indigo-900">
+            <DialogTitle className="text-center text-indigo-900 text-base sm:text-lg">
               Escaneando documento
             </DialogTitle>
-            <DialogDescription className="text-center mt-2">
+            <DialogDescription className="text-center mt-2 text-xs sm:text-sm">
               Estamos analizando la imagen de tu DNI. Por favor espera un momento...
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center pt-2">
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
               <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
               <span>Procesando zona MRZ</span>
             </div>

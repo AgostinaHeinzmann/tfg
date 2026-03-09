@@ -1,6 +1,6 @@
 import type React from "react"
 import { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { Button } from "../components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
@@ -8,15 +8,11 @@ import {
   MapPin,
   Calendar,
   Bookmark,
-  Share2,
-  Download,
-  ExternalLink,
   Info,
   Star,
   Coffee,
   Utensils,
   Bus,
-  Train,
   Loader2,
 } from "lucide-react"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../components/ui/accordion"
@@ -209,7 +205,7 @@ const ItinerarioResultadoPage: React.FC<ItinerarioResultadoPageProps> = ({ itine
                 </AccordionTrigger>
                 <AccordionContent className="px-4">
                   <div className="space-y-6 pt-2 pb-4">
-                    {day.activities.map((activity, index) => (
+                    {day.activities.map((activity) => (
                       <div
                         key={activity.id}
                         className="relative pl-8 border-l-2 border-indigo-200 pb-6 last:border-l-0 last:pb-0"
@@ -249,15 +245,6 @@ const ItinerarioResultadoPage: React.FC<ItinerarioResultadoPageProps> = ({ itine
                               </div>
                               <div className="md:w-3/4">
                                 <h3 className="font-bold text-lg text-indigo-900 mb-1">{activity.title}</h3>
-                                <div className="flex items-center gap-2 mb-2">
-                                  <div className="flex items-center">
-                                    <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                                    <span className="ml-1 text-sm">{activity.rating}</span>
-                                  </div>
-                                  <span className="text-sm text-gray-500">•</span>
-                                  <span className="text-sm text-gray-500">{activity.duration}</span>
-                                  <span className="text-sm text-gray-500">•</span>
-                                </div>
                                 <p className="text-gray-700 text-sm mb-3">{activity.description}</p>
                                 <div className="space-y-2">
                                   <div className="flex items-start gap-2">

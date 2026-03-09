@@ -8,13 +8,12 @@ import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
 import { MapPin, Palette, Utensils, Camera, GraduationCap, PartyPopper, Users, Clock, Loader2, Search, X, Globe } from "lucide-react"
 import ItinerarioResultadoPage from "./ItinerarioResultadoPage"
-import { Dialog, DialogTrigger } from "@radix-ui/react-dialog"
+import { Dialog} from "@radix-ui/react-dialog"
 import { DialogContent } from "@/components/ui/dialog"
-import { searchItineraries, saveItineraryToProfile, getPopularItineraries, getItineraryDays } from "@/services/itinerarioService"
+import { searchItineraries, getPopularItineraries, getItineraryDays } from "@/services/itinerarioService"
 import { getFilters } from "@/services/filtrosService"
 import { showToast } from "@/lib/toast-utils"
 import { geocodeAddress } from "@/lib/utils"
-import { auth } from "../../firebase/firebase.config"
 
 
 const BuscarItinerarioPage: React.FC = () => {
@@ -282,12 +281,7 @@ const BuscarItinerarioPage: React.FC = () => {
             location: item.direccion_nombre || item.nombre?.replace(/Día\s*\d+:\s*/i, '') || '',
             address: item.direccion_completa || addressString || '',
             coordinates: activityCoords,
-            time: item.hora || '09:00',
-            duration: item.duracion || '2 horas',
-            price: item.precio || null,
-            ticketUrl: item.ticketUrl,
             imageUrl: item.imagen || '/placeholder.svg',
-            rating: item.rating || 4.5,
             type: (item.tipo || item.interes?.toLowerCase().includes('museo') ? 'museo' : 'atracción') as "museo" | "atracción" | "transporte" | "descanso"
           }
         }

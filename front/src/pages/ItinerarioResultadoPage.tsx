@@ -166,8 +166,7 @@ const ItinerarioResultadoPage: React.FC<ItinerarioResultadoPageProps> = ({ itine
           <CardContent className="space-y-4">
             <p className="text-gray-700">
               Este itinerario de {itineraryData.duration} días en {itineraryData.destination} está enfocado en{" "}
-              <strong>{itineraryData.interests.join(", ")}</strong> con un presupuesto{" "}
-              ciudad, con tiempo para disfrutar de la gastronomía local.
+              <strong>{itineraryData.interests.join(", ")}</strong> para que disfrutes de unos días increíbles en el destino.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">

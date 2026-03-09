@@ -16,7 +16,6 @@ export interface UpdateItineraryData {
   duracion?: string
   resumen_itinerario?: string
   recomendacion?: string
-  enlace_oficial?: string
 }
 
 export interface CreateItineraryData {

@@ -564,12 +564,13 @@ const CrearEventoPage: React.FC = () => {
                         ))
                       ) : (
                         <>
+                          <SelectItem value="Arte">Arte</SelectItem>
                           <SelectItem value="Cultura">Cultura</SelectItem>
-                          <SelectItem value="Gastronomía">Gastronomía</SelectItem>
-                          <SelectItem value="Aventura">Aventura</SelectItem>
+                          <SelectItem value="Educación">Educación</SelectItem>
                           <SelectItem value="Fiesta">Fiesta</SelectItem>
-                          <SelectItem value="Deporte">Deporte</SelectItem>
-                          <SelectItem value="Naturaleza">Naturaleza</SelectItem>
+                          <SelectItem value="Fotografía">Fotografía</SelectItem>
+                          <SelectItem value="Gastronomía">Gastronomía</SelectItem>
+                          <SelectItem value="Social">Social</SelectItem>
                         </>
                       )}
                     </SelectContent>

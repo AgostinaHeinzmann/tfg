@@ -15,7 +15,6 @@ import { User } from "./User"
 import Direccion from "./Direccion"
 import MensajeEvent from "./MensajeEvent"
 import InscripcionEvent from "./InscripcionEvent"
-import EventUser from "./EventUser"
 import Interes from "./Interes"
 
 @Table({
@@ -98,9 +97,6 @@ export class Event extends Model<Event> {
 
   @HasMany(() => InscripcionEvent, { sourceKey: 'evento_id', foreignKey: 'evento_id' })
   inscripciones?: InscripcionEvent[]
-
-  @HasMany(() => EventUser, { sourceKey: 'evento_id', foreignKey: 'evento_id' })
-  eventUsers?: EventUser[]
 
   @HasMany(() => Interes, { sourceKey: 'evento_id', foreignKey: 'evento_id' })
   intereses?: Interes[]

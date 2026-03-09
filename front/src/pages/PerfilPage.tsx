@@ -352,7 +352,7 @@ const PerfilPage: React.FC = () => {
           time: item.hora || '09:00',
           duration: item.duracion || '2 horas',
           price: item.precio || null,
-          ticketUrl: item.enlace_oficial || item.ticketUrl,
+          ticketUrl: item.ticketUrl,
           imageUrl: item.imagen || '/placeholder.svg',
           rating: item.rating || 4.5,
           type: (item.tipo || 'atracción') as "museo" | "atracción" | "transporte" | "descanso"

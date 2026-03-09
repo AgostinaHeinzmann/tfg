@@ -1,16 +1,9 @@
 import { Request, Response } from "express";
-import { Event } from "../models/Event";
-import { where, WhereOptions } from "sequelize";
-import { Where } from "sequelize/types/utils";
 import { Op, fn, col } from "sequelize";
 import Interes from "../models/Interes";
-import Direccion from "../models/Direccion";
 import { Ciudad } from "../models/Ciudad";
 import Pais from "../models/Pais";
-import MensajeEvent from "../models/MensajeEvent";
-import InscripcionEvent from "../models/InscripcionEvent";
-import EventUser from "../models/EventUser";
-import { User } from "../models/User";
+
 
 export const getFilters = async (
   req: Request,

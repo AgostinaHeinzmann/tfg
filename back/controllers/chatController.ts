@@ -6,7 +6,7 @@ import InscripcionEvent from "../models/InscripcionEvent";
 import ChatUsuarioLectura from "../models/ChatUsuarioLectura";
 import Direccion from "../models/Direccion";
 import { Ciudad } from "../models/Ciudad";
-import { Op, literal, fn, col } from "sequelize";
+import { Op} from "sequelize";
 
 /**
  * Obtiene todos los chats del usuario (eventos donde es creador o está inscrito)

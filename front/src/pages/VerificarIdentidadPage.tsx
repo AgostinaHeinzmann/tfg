@@ -77,6 +77,9 @@ const VerificarIdentidadPage: React.FC = () => {
 
         if (result?.barcodeResults?.length > 0) {
           handleBarcodeDetected(result.barcodeResults[0].text);
+        } else {
+          // Usuario cerró el escáner sin escanear nada
+          setShowScanner(false);
         }
       } catch (error) {
         toast.error("Error al iniciar el scanner. Verifica tu licencia.");

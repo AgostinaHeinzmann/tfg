@@ -5,7 +5,6 @@ import { Ciudad } from "../models/Ciudad";
 import { Comentario } from "../models/Comentario";
 import { Direccion } from "../models/Direccion";
 import { Event } from "../models/Event";
-import { EventUser } from "../models/EventUser";
 import { InscripcionEvent } from "../models/InscripcionEvent";
 import { Interes } from "../models/Interes";
 import { Itinerary } from "../models/Itinerario";
@@ -44,7 +43,6 @@ export const sequelize = new Sequelize({
     Comentario,
     Direccion,
     Event,
-    EventUser,
     InscripcionEvent,
     Interes,
     Itinerary,

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
-import { MapPin, Palette, Utensils, Music, Mountain, Waves, Moon, Clock, Loader2, Search, X, Globe } from "lucide-react"
+import { MapPin, Palette, Utensils, Camera, GraduationCap, PartyPopper, Users, Clock, Loader2, Search, X, Globe } from "lucide-react"
 import ItinerarioResultadoPage from "./ItinerarioResultadoPage"
 import { Dialog, DialogTrigger } from "@radix-ui/react-dialog"
 import { DialogContent } from "@/components/ui/dialog"
@@ -83,12 +83,13 @@ const BuscarItinerarioPage: React.FC = () => {
   }
 
   const interests = [
-    { id: "cultura", name: "Cultura", icon: Palette },
+    { id: "arte", name: "Arte", icon: Palette },
+    { id: "cultura", name: "Cultura", icon: GraduationCap },
+    { id: "educacion", name: "Educación", icon: GraduationCap },
+    { id: "fiesta", name: "Fiesta", icon: PartyPopper },
+    { id: "fotografia", name: "Fotografía", icon: Camera },
     { id: "gastronomia", name: "Gastronomía", icon: Utensils },
-    { id: "musica", name: "Música", icon: Music },
-    { id: "aventura", name: "Aventura", icon: Mountain },
-    { id: "playa", name: "Playa", icon: Waves },
-    { id: "vida-nocturna", name: "Vida nocturna", icon: Moon },
+    { id: "social", name: "Social", icon: Users },
   ]
 
   // Filtrar ciudades según búsqueda
@@ -242,7 +243,7 @@ const BuscarItinerarioPage: React.FC = () => {
       // Procesar actividades y geocodificar direcciones
       const processActivity = async (item: any) => {
         // Extraer el número del día del nombre (ej: "Día 1: Centro Histórico" -> 1)
-        const dayMatch = item.nombre?.match(/Día\s*(\d+)/i)
+        const dayMatch = item.nombre?.match(/d[ií]a\s*(\d+)/i)
         const dayNumber = dayMatch ? parseInt(dayMatch[1]) : 1
         
         // Construir la dirección desde el objeto anidado
@@ -284,7 +285,7 @@ const BuscarItinerarioPage: React.FC = () => {
             time: item.hora || '09:00',
             duration: item.duracion || '2 horas',
             price: item.precio || null,
-            ticketUrl: item.enlace_oficial || item.ticketUrl,
+            ticketUrl: item.ticketUrl,
             imageUrl: item.imagen || '/placeholder.svg',
             rating: item.rating || 4.5,
             type: (item.tipo || item.interes?.toLowerCase().includes('museo') ? 'museo' : 'atracción') as "museo" | "atracción" | "transporte" | "descanso"

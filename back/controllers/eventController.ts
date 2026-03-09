@@ -9,7 +9,6 @@ import { Ciudad } from "../models/Ciudad";
 import Pais from "../models/Pais";
 import MensajeEvent from "../models/MensajeEvent";
 import InscripcionEvent from "../models/InscripcionEvent";
-import EventUser from "../models/EventUser";
 import { User } from "../models/User";
 import ChatUsuarioLectura from "../models/ChatUsuarioLectura";
 
@@ -291,10 +290,6 @@ export const getEventById = async (
               }
             }
           ]
-        },
-        {
-          model: EventUser,
-          required: false
         },
         {
           model: User,
@@ -749,11 +744,6 @@ export const deleteEvent = async (
 
     // Eliminar registros de lectura del chat
     await ChatUsuarioLectura.destroy({
-      where: { evento_id: Number(id) }
-    });
-
-    // Eliminar relaciones usuario-evento
-    await EventUser.destroy({
       where: { evento_id: Number(id) }
     });
 

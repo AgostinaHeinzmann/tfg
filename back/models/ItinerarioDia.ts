@@ -1,8 +1,12 @@
-import { Table, Column, Model, DataType, PrimaryKey, AutoIncrement, ForeignKey, AllowNull, BelongsTo } from "sequelize-typescript"
+import { Table, Column, Model, DataType, PrimaryKey, AutoIncrement, ForeignKey, AllowNull, BelongsTo, Index } from "sequelize-typescript"
 import Itinerary from "./Itinerario"
 import Direccion from "./Direccion"
 
-@Table({ tableName: "itinerario_por_dia", timestamps: false })
+@Table({
+  tableName: "itinerario_por_dia",
+  timestamps: false,
+  indexes: [{ unique: true, fields: ['itinerario_id', 'nombre'], name: 'uq_itinerario_dia_nombre' }]
+})
 export class ItinerarioDia extends Model<ItinerarioDia> {
   @PrimaryKey
   @AutoIncrement
@@ -26,10 +30,6 @@ export class ItinerarioDia extends Model<ItinerarioDia> {
   @AllowNull(true)
   @Column(DataType.TEXT)
   descripcion?: string | null
-
-  @AllowNull(true)
-  @Column(DataType.TEXT)
-  enlace_oficial?: string | null
 
   @AllowNull(true)
   @Column(DataType.TEXT)

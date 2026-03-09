@@ -26,7 +26,7 @@ const HomePage: React.FC = () => {
   const features = [
     {
       icon: Trees,
-      title: "Itinerarios Personalizados",
+      title: "Itinerarios",
       description: "Busca itinerarios basados en tus intereses",
       details: "Busca itinerarios basados en tus intereses, destino y fechas de viaje para aprovechar al máximo tu experiencia.",
       color: "from-emerald-400 to-teal-500"
@@ -40,7 +40,7 @@ const HomePage: React.FC = () => {
     },
     {
       icon: Shield,
-      title: "Sistema de Seguridad",
+      title: "Seguridad",
       description: "Verificación de edad para eventos",
       details: "Sistema de escaneo de DNI y validación de edad para garantizar la seguridad al inscribirse en eventos con restricciones.",
       color: "from-amber-400 to-orange-500"

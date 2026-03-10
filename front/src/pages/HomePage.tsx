@@ -229,7 +229,7 @@ const HomePage: React.FC = () => {
               return (
                 <Card 
                   key={index}
-                  className={`border-0 shadow-lg card-hover-effect cursor-pointer overflow-hidden group animate-fade-in-up`}
+                  className={`border-0 shadow-lg card-hover-effect cursor-pointer overflow-hidden group animate-fade-in-up h-full flex flex-col`}
                   style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'both' }}
                 >
                   <CardHeader className="pb-4">
@@ -243,7 +243,7 @@ const HomePage: React.FC = () => {
                       {feature.description}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="flex-1">
                     <p className="text-sm text-gray-600 leading-relaxed">
                       {feature.details}
                     </p>

@@ -58,6 +58,10 @@ const ExperienciasPage: React.FC = () => {
   const [imageViewerOpen, setImageViewerOpen] = useState(false)
   const [viewerImage, setViewerImage] = useState<string>("")
 
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   // Obtener usuario_id del localStorage
   const userData = loadFromLocalStorage("userData")
   const currentUserId = userData?.usuario_id

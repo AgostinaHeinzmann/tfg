@@ -66,6 +66,21 @@ export const searchItineraries = async (
   try {
     const { destination, ciudad_id, pais_id, duration, interests } = req.query;
 
+    const accentChars = 'áéíóúÁÉÍÓÚäëïöüÄËÏÖÜñÑ';
+    const plainChars = 'aeiouAEIOUaeiouAEIOUnN';
+
+    const normalizeSearchTerm = (value: string): string =>
+      value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+    const normalizedInterestsColumn = Sequelize.fn(
+      'LOWER',
+      Sequelize.fn('TRANSLATE', Sequelize.col('intereses'), accentChars, plainChars)
+    );
+
     // Construir el where clause
     let whereClause: any = {};
 
@@ -116,9 +131,11 @@ export const searchItineraries = async (
         whereClause[Op.and] = [
           ...(whereClause[Op.and] || []),
           {
-            [Op.or]: interestsArray.map(i => ({
-              intereses: { [Op.iLike]: `%${i.trim()}%` }
-            }))
+            [Op.or]: interestsArray.map(i =>
+              Sequelize.where(normalizedInterestsColumn, {
+                [Op.like]: `%${normalizeSearchTerm(i)}%`
+              })
+            )
           }
         ];
       }

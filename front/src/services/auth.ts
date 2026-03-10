@@ -5,7 +5,6 @@ import {
   GoogleAuthProvider,
 } from "firebase/auth";
 import { auth } from "../../firebase/firebase.config";
-import firebase from "firebase/compat/app";
 
 export const register = async (credentials: {
   email: string;

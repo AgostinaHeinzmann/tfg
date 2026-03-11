@@ -183,7 +183,7 @@ export const getUserChats = async (
           horario: event.horario,
           duracion: event.duracion,
           ubicacion: event.direccion?.calle 
-            ? `${event.direccion.calle}${event.direccion.numero ? ` ${event.direccion.numero}` : ''}`
+            ? `${event.direccion.calle}`
             : event.calle || null,
           ciudad: (event.direccion as any)?.ciudad?.nombre || null,
           cant_participantes: event.cant_participantes,
@@ -374,7 +374,7 @@ export const getChatMessages = async (
       horario: event.horario,
       duracion: event.duracion,
       ubicacion: event.direccion?.calle 
-        ? `${event.direccion.calle}${event.direccion.numero ? ` ${event.direccion.numero}` : ''}`
+        ? `${event.direccion.calle}`
         : event.calle || null,
       ciudad: (event.direccion as any)?.ciudad?.nombre || null,
       cant_participantes: event.cant_participantes,

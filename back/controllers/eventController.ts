@@ -1115,7 +1115,7 @@ export const getUserEvents = async (
       include: [
         {
           model: Direccion,
-          attributes: ['calle', 'numero'],
+          attributes: ['calle'],
           include: [{ model: Ciudad, attributes: ['nombre'] }]
         },
         {
@@ -1134,7 +1134,7 @@ export const getUserEvents = async (
           include: [
             {
               model: Direccion,
-              attributes: ['calle', 'numero'],
+              attributes: ['calle'],
               include: [{ model: Ciudad, attributes: ['nombre'] }]
             },
             {
@@ -1157,7 +1157,7 @@ export const getUserEvents = async (
           : (e.imagen_id ? `/api/images/${e.imagen_id}` : '/placeholder.svg'),
         date: e.fecha_inicio,
         time: e.horario,
-        location: e.direccion?.calle ? `${e.direccion.calle}${e.direccion.numero ? ` ${e.direccion.numero}` : ''}` : e.calle || 'Sin ubicación',
+        location: e.direccion?.calle ? `${e.direccion.calle}` : e.calle || 'Sin ubicación',
         city: (e.direccion as any)?.ciudad?.nombre || '',
         participants: e.inscripciones?.length || 0,
         maxParticipants: e.cant_participantes,
@@ -1186,7 +1186,7 @@ export const getUserEvents = async (
             : (i.evento?.imagen_id ? `/api/images/${i.evento?.imagen_id}` : '/placeholder.svg'),
           date: i.evento?.fecha_inicio,
           time: i.evento?.horario,
-          location: i.evento?.direccion?.calle ? `${i.evento.direccion.calle}${i.evento.direccion.numero ? ` ${i.evento.direccion.numero}` : ''}` : i.evento?.calle || 'Sin ubicación',
+          location: i.evento?.direccion?.calle ? `${i.evento.direccion.calle}` : i.evento?.calle || 'Sin ubicación',
           city: (i.evento?.direccion as any)?.ciudad?.nombre || '',
           participants: i.evento?.inscripciones?.length || 0,
           maxParticipants: i.evento?.cant_participantes,
